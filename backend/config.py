@@ -1,19 +1,14 @@
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    # Database
     database_url: str
     
-    # Ollama
+    # Ai Model
     ollama_device_a_url: str = "http://localhost:11434"
     ollama_device_b_url: str = "http://localhost:11434"
     
-    # Logging
     log_level: str = "INFO"
 
-    # Model role → Ollama model name mapping.
-    # These are the names created via `ollama create`.
-    # Change the FROM line in the Modelfiles, not these strings.
     MODEL_MAIN_REASONER: str = "main-reasoner"
     MODEL_GRAPH_BUILDER: str = "graph-builder"
 

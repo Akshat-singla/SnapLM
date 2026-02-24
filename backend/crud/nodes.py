@@ -69,13 +69,11 @@ async def calculate_position(session: AsyncSession, parent_id: uuid.UUID | None)
     if not parent:
         return 0.0, 0.0
 
-    # Count siblings to determine X offset
     result = await session.execute(
         select(func.count()).select_from(Node).where(Node.parent_id == parent_id)
     )
     sibling_count = result.scalar_one()
     
-    # 200px spacing per sibling
     return parent.position_x + (sibling_count * 200), parent.position_y + 200.0
 
 from sqlalchemy import func

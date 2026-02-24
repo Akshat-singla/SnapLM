@@ -4,7 +4,6 @@ from models.db_models import NodeSummary
 import uuid
 
 async def create_summary(session: AsyncSession, node_id: uuid.UUID, summary_json: dict, generated_from_event: uuid.UUID = None) -> NodeSummary:
-    # Set is_latest=False on existing
     await session.execute(
         update(NodeSummary)
         .where(NodeSummary.node_id == node_id)
