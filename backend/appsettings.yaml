@@ -1,0 +1,18 @@
+database_url: "postgresql+asyncpg://postgres:password@localhost:5432/userdb"
+
+# Ollama Devices
+ollama_device_a_url: "http://localhost:11434"
+ollama_device_b_url: "http://localhost:11435"
+
+log_level: "INFO"
+
+# Models
+MODEL_MAIN_REASONER: "main-reasoner"
+MODEL_GRAPH_BUILDER: "graph-builder"
+
+# Context limits
+CTX_MAIN_REASONER: 8192
+CTX_GRAPH_BUILDER: 4096
+
+# Chat config
+CHAT_RECENT_MESSAGES: 10

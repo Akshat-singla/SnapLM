@@ -3,7 +3,8 @@ from functools import lru_cache
 from typing import Any
 
 import yaml
-from pydantic import BaseSettings, Field
+from pydantic_settings import BaseSettings
+from pydantic import Field
 
 class LogLevels(str, Enum):
     """Enum of permitted log levels."""
@@ -33,8 +34,7 @@ class ApiConfigSettings(BaseSettings):
     docs_url: str
 
 class Settings(BaseSettings):
-    database_url: str
-    
+    database_url: str = "postgresql+asyncpg://user:mypassword@localhost:5432/fractal_workspace"
     # Ai Model
     ollama_device_a_url: str = "http://localhost:11434"
     ollama_device_b_url: str = "http://localhost:11434"
@@ -51,9 +51,6 @@ class Settings(BaseSettings):
     # How many recent messages the chat agent sees
     CHAT_RECENT_MESSAGES: int = 10
 
-    class Config:
-        env_file = ".env"
-
 settings = Settings()
 
 # Device routing: which URL serves which model
@@ -61,14 +58,14 @@ DEVICE_URLS = {
     settings.MODEL_MAIN_REASONER: settings.ollama_device_a_url,
     settings.MODEL_GRAPH_BUILDER: settings.ollama_device_b_url,
 }
-
-def load_from_yaml() -> Any:
-    with open("appsettings.yaml") as fp:
-        config = yaml.safe_load(fp)
-    return config
-
-@lru_cache()
-def get_settings() -> Settings:
-    yaml_config = load_from_yaml()
-    settings = Settings(**yaml_config)
-    return settings
+#
+# def load_from_yaml() -> Any:
+#     with open("appsettings.yaml") as fp:
+#         config = yaml.safe_load(fp)
+#     return config
+#
+# @lru_cache()
+# def get_settings() -> Settings:
+#     yaml_config = load_from_yaml()
+#     settings = Settings(**yaml_config)
+#     return settings

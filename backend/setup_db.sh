@@ -7,7 +7,7 @@ DB_USER="fractal"
 DB_PASS="fractal123"
 PG_HOST="localhost"
 PG_PORT="5432"
-SUPERUSER="postgres"
+SUPERUSER="user"
 
 echo "Setting up PostgreSQL database..."
 
@@ -28,4 +28,3 @@ else
 fi
 
 echo "Setup complete."
-EOF
