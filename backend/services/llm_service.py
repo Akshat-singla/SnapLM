@@ -1,5 +1,5 @@
 import ollama
-from config import settings, DEVICE_URLS
+from config.settings import settings, DEVICE_URLS
 import asyncio
 import logging
 

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, constr
+from config.settings import BaseModel, Field, constr
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 from datetime import datetime

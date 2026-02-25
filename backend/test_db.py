@@ -1,5 +1,6 @@
 import asyncio
-from database import init_db, get_db
+from database import init_db
+
 
 async def test_connection():
     try:
@@ -11,4 +12,3 @@ async def test_connection():
 
 if __name__ == "__main__":
     asyncio.run(test_connection())
-EOF
