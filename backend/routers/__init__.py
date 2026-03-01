@@ -1,8 +1,13 @@
+import asyncio
 from fastapi import APIRouter
+from backend.routers.user import router as user_router
+from backend.routers.projects import router as project_router
+from backend.routers.nodes import router as nodes_router
+from backend.routers.auth import router as auth_router
 
-from routers import user
+router = APIRouter()
 
-api_router = APIRouter()
-# api_router.include_router(xml_json.router, tags=["XML/JSON Conversion"])
-api_router.include_router(user.router, tags=["User"])
-# api_router.include_router(template.router, tags=["Form Template"])
+router.include_router(user_router, tags=["user"])
+router.include_router(project_router, tags=["project"])
+router.include_router(nodes_router, tags=["nodes"])
+router.include_router(auth_router, tags=["auth"])

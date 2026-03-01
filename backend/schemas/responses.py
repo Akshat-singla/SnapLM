@@ -1,6 +1,5 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import List, Optional
-
 
 class ErrorResponse(BaseModel):
     success: bool = False
@@ -10,8 +9,6 @@ class ErrorResponse(BaseModel):
 
 class UserResponse(BaseModel):
     email: str
-    value: Optional[str]
-
     class Config:
         from_attributes = True
 
@@ -23,3 +20,12 @@ class UserListResponse(BaseModel):
 class ServiceBaseResponse(BaseModel):
     success: bool = True
     message: Optional[str] = None
+
+class UserLoginResponse(BaseModel):
+    user_id: int
+    email: EmailStr
+    auth_type: str
+    auth_provider: Optional[str] = None
+
+    class Config:
+        from_attributes = True

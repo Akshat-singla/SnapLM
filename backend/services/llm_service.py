@@ -1,34 +1,51 @@
 import ollama
-from config.settings import settings, DEVICE_URLS
+from ..config.settings import settings, DEVICE_URLS
 import asyncio
 import logging
 
+
 class LLMService:
     def _get_client(self, model_name: str) -> ollama.Client:
-        """Return an Ollama client pointed at the correct device URL for this model."""
-        url = DEVICE_URLS.get(model_name, settings.ollama_device_a_url)
-        return ollama.Client(host=url)
+        """
+        Return an Ollama client pointed at the correct device URL for this model.
+        """
+
+        host = DEVICE_URLS.get(model_name)
+
+        if not host:
+            raise ValueError(f"No device URL configured for model: {model_name}")
+
+        # Ensure URL has protocol
+        if not host.startswith("http"):
+            host = f"http://{host}"
+        print(f"LLMService: Using host {host} for model {model_name}")
+        return ollama.Client(host=host)
 
     async def call(self, model_name: str, system_prompt: str, user_content: str) -> str:
         """
         Generic Ollama call. All agents go through here.
         """
+
         client = self._get_client(model_name)
+
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content}
+            {"role": "user", "content": user_content},
         ]
-        # ollama.Client.chat is synchronous — run in executor
-        loop = asyncio.get_event_loop()
+        print(model_name)
         try:
-            response = await loop.run_in_executor(
-                None,
-                lambda: client.chat(model=model_name, messages=messages)
+            # Modern way (Python 3.9+)
+            response = await asyncio.to_thread(
+                client.chat,
+                model=model_name,
+                messages=messages,
             )
+
             return response["message"]["content"]
+
         except Exception as e:
             logging.error(f"LLM Call failed for {model_name}: {e}")
-            raise e
+            raise
 
     async def chat(self, system_prompt: str, user_content: str) -> str:
         return await self.call(settings.MODEL_MAIN_REASONER, system_prompt, user_content)
@@ -40,20 +57,28 @@ class LLMService:
         return await self.call(settings.MODEL_MAIN_REASONER, system_prompt, user_content)
 
     async def extract_graph(self, system_prompt: str, user_content: str) -> str:
-        """Calls graph-builder on Device B. Caller must catch exceptions."""
+        """
+        Calls graph-builder on Device B.
+        Caller must catch exceptions.
+        """
         return await self.call(settings.MODEL_GRAPH_BUILDER, system_prompt, user_content)
 
-    async def exploration_chat(self, system_prompt: str, user_content: str) -> tuple[str, str | None]:
+    async def exploration_chat(
+        self, system_prompt: str, user_content: str
+    ) -> tuple[str, str | None]:
         """
-        Exploration stub. Attempts exploration model. Falls back to main-reasoner.
+        Exploration stub.
+        Attempts exploration model. Falls back to main-reasoner.
         Returns (response_text, fallback_from).
         """
         try:
-            # Future: call a 3B exploration model on Device B
             raise NotImplementedError("Exploration model not yet configured")
         except Exception:
-            logging.warning("Exploration model not configured or unreachable. Falling back to main-reasoner.")
+            logging.warning(
+                "Exploration model not configured. Falling back to main-reasoner."
+            )
             response = await self.chat(system_prompt, user_content)
             return response, "exploration"
+
 
 llm_service = LLMService()
