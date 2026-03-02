@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, asc
-from ..models.db_models import Message
+from models.db_models import Message
 import uuid
 
 async def create_message(session: AsyncSession, node_id: uuid.UUID, role: str, content: str, token_count: int = None, metadata: dict = None) -> Message:

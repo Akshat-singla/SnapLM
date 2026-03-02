@@ -1,5 +1,5 @@
 def estimate_token_count(text: str) -> int:
-    """routerroximate token count (split on whitespace, multiply by 1.3)."""
+    """Approximate token count (split on whitespace, multiply by 1.3)."""
     if not text:
         return 0
     return int(len(text.split()) * 1.3)
