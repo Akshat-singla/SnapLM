@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, desc
-from ..models.db_models import NodeSummary
+from models.db_models import NodeSummary
 import uuid
 
 async def create_summary(session: AsyncSession, node_id: uuid.UUID, summary_json: dict, generated_from_event: uuid.UUID = None) -> NodeSummary:
