@@ -104,15 +104,14 @@ class TreeNodeResponse(BaseModel):
     children: List['TreeNodeResponse'] = []
 
 class InheritedContextResponse(BaseModel):
-    """Response model for inherited context from parent lineage"""
     node_id: UUID
-    facts: List[Dict[str, Any]] = []
-    decisions: List[Dict[str, Any]] = []
-    open_questions: List[str] = []
-    key_entities: List[str] = []
-    lineage_depth: int = 0
-    parent_title: Optional[str] = None
-    parent_node_id: Optional[UUID] = None
+    source: str  # "stored_snapshot" | "computed" | "none"
+    version: int = 1
+    lineage: Dict[str, Any]
+    knowledge: Dict[str, List[Dict[str, Any]]]
+    entities: List[Dict[str, Any]] = []
+    summary_ref: Dict[str, Any]
+    token_estimate: int = 0
 
 class GraphEdge(BaseModel):
     from_entity: str

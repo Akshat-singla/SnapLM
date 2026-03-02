@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     # Models
     MODEL_MAIN_REASONER: str = "granite3.3:2b"
-    MODEL_GRAPH_BUILDER: str = "graph-builder"
+    MODEL_GRAPH_BUILDER: str = "granite3.3:2b"
 
     # Context windows
     CTX_MAIN_REASONER: int = 8192

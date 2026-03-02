@@ -6,7 +6,7 @@ from backend.database import get_db
 from backend.schemas import responses, requests
 from backend.crud import user as user_crud
 
-router = APIRouter()
+router = APIRouter(prefix="/api/v1", tags=["users"])
 
 @router.get("/users", response_model=responses.UserListResponse)
 async def get_users(

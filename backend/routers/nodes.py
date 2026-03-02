@@ -9,27 +9,42 @@ from backend.models.api_models import (
     DeleteRequest, DeleteResponse,
     CopyRequest,
     TreeNodeResponse, GraphResponse, GraphEdge,
+    InheritedContextResponse
 )
-from backend.crud.nodes import create_node as crud_create_node, get_node_by_id_or_404, get_tree as crud_get_tree, update_node_status, calculate_position, get_node_lineage
+from backend.crud.nodes import (
+    create_node as crud_create_node,
+    get_node_by_id_or_404,
+    get_tree as crud_get_tree,
+    update_node_status,
+    calculate_position,
+    get_node_lineage
+)
 from backend.crud.messages import create_message, get_messages as crud_get_messages
 from backend.crud.summaries import create_summary, get_latest_summary
-# from backend.services.context_manager import build_chat_context, build_summarize_context, build_graph_context, snapshot_parent_context, build_merge_context
 import backend.services.context_manager as context_manager
 from backend.services.llm_service import llm_service
 from backend.services.event_processor import record_event
-from backend.services.graph_service import store_graph_edges, get_lineage_graph, soft_delete_edges, merge_graphs
+from backend.services.graph_service import (
+    store_graph_edges,
+    get_lineage_graph,
+    soft_delete_edges,
+    merge_graphs
+)
 from backend.utils.helpers import estimate_token_count
 import json
 import logging
 import uuid
+import os
 
-logging.basicConfig(level=logging.INFO)
+DEV_MODE = os.getenv("DEV_MODE", "true").lower() == "true"
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 @router.post("/api/v1/nodes", response_model=NodeResponse)
 async def create_node(request: CreateNodeRequest, session: AsyncSession = Depends(get_db)):
+
     if request.parent_id:
         await get_node_by_id_or_404(session, request.parent_id)
 
@@ -37,8 +52,9 @@ async def create_node(request: CreateNodeRequest, session: AsyncSession = Depend
 
     inherited_context = None
     if request.parent_id:
-        inherited_context = await context_manager.snapshot_parent_context(session, request.parent_id)
-        logger.info(f"Created context snapshot for new branch: {len(inherited_context.get('facts', []))} facts, {len(inherited_context.get('decisions', []))} decisions")
+        inherited_context = await context_manager.snapshot_parent_context(
+            session, request.parent_id
+        )
 
     node_data = {
         "title": request.title,
@@ -52,28 +68,32 @@ async def create_node(request: CreateNodeRequest, session: AsyncSession = Depend
     }
 
     node = await crud_create_node(session, node_data)
+
     await record_event(session, node.node_id, "NODE_CREATED", {
-        "title": node.title,
-        "parent_id": str(node.parent_id) if node.parent_id else None,
-        "project_id": str(node.project_id) if node.project_id else None
+        "parent_id": str(node.parent_id) if node.parent_id else None
     })
 
+    # Optional initial message
     if request.initial_message:
-        user_msg_token_count = estimate_token_count(request.initial_message)
-        await create_message(session, node.node_id, "user", request.initial_message, user_msg_token_count)
-        await record_event(session, node.node_id, "MESSAGE_ADDED", {"role": "user", "context": "initial_focus"})
+        token_count = estimate_token_count(request.initial_message)
+        await create_message(session, node.node_id, "user",
+                             request.initial_message, token_count)
 
         chat_ctx = await context_manager.build_chat_context(session, node.node_id)
 
-        if node.node_type == "exploration":
-            response_text, _ = await llm_service.exploration_chat(chat_ctx["system_prompt"], request.initial_message)
-        else:
-            response_text = await llm_service.chat(chat_ctx["system_prompt"], request.initial_message)
+        response_text = await llm_service.chat(
+            chat_ctx["system_prompt"],
+            request.initial_message
+        )
 
-        asst_token_count = estimate_token_count(response_text)
-        await create_message(session, node.node_id, "assistant", response_text, asst_token_count)
-        await record_event(session, node.node_id, "MESSAGE_ADDED", {"role": "assistant", "context": "initial_response"})
-
+        await create_message(
+            session,
+            node.node_id,
+            "assistant",
+            response_text,
+            estimate_token_count(response_text)
+        )
+    
     return NodeResponse(
         node_id=node.node_id,
         project_id=node.project_id,
@@ -113,6 +133,25 @@ async def send_message(node_id: uuid.UUID, request: SendMessageRequest, session:
 
     asst_token_count = estimate_token_count(response_text)
     asst_msg = await create_message(session, node_id, "assistant", response_text, asst_token_count)
+    update_ctx = await context_manager.build_knowledge_update_context(
+        session,
+        node_id
+    )
+    try:
+        updated_summary_text = await llm_service.summarize(
+            update_ctx["system_prompt"],
+            ""
+        )
+        updated_summary = json.loads(updated_summary_text)
+
+        await context_manager.apply_knowledge_update(
+            session,
+            node,
+            updated_summary
+        )
+    except Exception as e:
+        logger.error(f"Auto knowledge update failed: {e}")
+        
     await record_event(session, node_id, "MESSAGE_ADDED", {"role": "assistant", "message_id": str(asst_msg.message_id)})
 
     return MessageResponse(
@@ -271,45 +310,28 @@ async def copy_node(node_id: uuid.UUID, request: CopyRequest, session: AsyncSess
 
 @router.get("/api/v1/nodes/tree", response_model=list[TreeNodeResponse])
 async def get_tree(session: AsyncSession = Depends(get_db)):
+
     nodes = await crud_get_tree(session)
 
-    # Fetch summaries for all nodes
-    node_summaries = {}
-    for n in nodes:
-        summary = await get_latest_summary(session, n.node_id)
-        if summary:
-            summary_json = summary.summary
-            if isinstance(summary_json, dict):
-                facts = summary_json.get("FACTS", [])
-                if isinstance(facts, list) and facts:
-                    node_summaries[n.node_id] = "; ".join(str(f) for f in facts[:3])
-                else:
-                    node_summaries[n.node_id] = str(summary_json.get("summary", ""))[:200]
-
-    # Build tree in memory
     node_map = {}
     roots = []
 
     for n in nodes:
-        summary_text = node_summaries.get(n.node_id)
         node_map[n.node_id] = TreeNodeResponse(
             node_id=n.node_id,
             title=n.title,
             status=n.status,
             node_type=n.node_type,
-            has_summary=n.node_id in node_summaries,
-            summary_text=summary_text,
-            merge_parent_id=n.merge_parent_id,
+            has_summary=False,
             position={"x": n.position_x, "y": n.position_y},
             children=[]
         )
 
-    # Link
     for n in nodes:
         if n.parent_id and n.parent_id in node_map:
-            node_map[n.parent_id].children.routerend(node_map[n.node_id])
+            node_map[n.parent_id].children.append(node_map[n.node_id])
         else:
-            roots.routerend(node_map[n.node_id])
+            roots.append(node_map[n.node_id])
 
     return roots
 
@@ -355,47 +377,95 @@ async def get_graph_endpoint(node_id: uuid.UUID, session: AsyncSession = Depends
         relations=graph_edges
     )
 
-@router.get("/api/v1/nodes/{node_id}/context")
-async def get_inherited_context(node_id: uuid.UUID, session: AsyncSession = Depends(get_db)):
-    """
-    Get the inherited context for a node.
-    Returns the frozen context snapshot stored at node creation,
-    plus any computed lineage context if the snapshot is missing.
-    """
+@router.get("/api/v1/nodes/{node_id}/context",
+            response_model=InheritedContextResponse)
+async def get_inherited_context(
+    node_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db)
+):
     node = await get_node_by_id_or_404(session, node_id)
 
     if node.inherited_context:
-        ctx = node.inherited_context
         return {
-            "node_id": str(node_id),
+            "node_id": node_id,
             "source": "stored_snapshot",
-            "facts": ctx.get("facts", []),
-            "decisions": ctx.get("decisions", []),
-            "open_questions": ctx.get("open_questions", []),
-            "key_entities": ctx.get("key_entities", []),
-            "lineage_depth": ctx.get("lineage_depth", 0),
-            "parent_title": ctx.get("parent_title"),
-            "parent_node_id": ctx.get("parent_node_id")
+            **node.inherited_context
         }
 
     if node.parent_id:
-        ctx = await context_manager.snapshot_parent_context(session, node.parent_id)
-        if ctx:
+        computed = await context_manager.snapshot_parent_context(
+            session, node.parent_id
+        )
+        if computed:
             return {
-                "node_id": str(node_id),
+                "node_id": node_id,
                 "source": "computed",
-                **ctx
+                **computed
             }
 
     return {
-        "node_id": str(node_id),
+        "node_id": node_id,
         "source": "none",
-        "facts": [],
-        "decisions": [],
-        "open_questions": [],
-        "key_entities": [],
-        "lineage_depth": 0,
-        "parent_title": None,
-        "parent_node_id": None
+        "version": 1,
+        "lineage": {},
+        "knowledge": {"facts": [], "decisions": [], "open_questions": []},
+        "entities": [],
+        "summary_ref": {},
+        "token_estimate": 0
     }
 
+### DEV ENDPOINTS - IGNORE IN PRODUCTION ###
+
+@router.get("/dev/nodes/{node_id}/raw")
+async def debug_raw_node(node_id: uuid.UUID, session: AsyncSession = Depends(get_db)):
+    if not DEV_MODE:
+        raise HTTPException(status_code=404)
+
+    node = await get_node_by_id_or_404(session, node_id)
+
+    return {
+        "node_id": node.node_id,
+        "title": node.title,
+        "parent_id": node.parent_id,
+        "status": node.status,
+        "inherited_context": node.inherited_context,
+        "metadata": node.metadata_
+    }
+
+@router.get("/dev/nodes/{node_id}/lineage")
+async def debug_lineage(node_id: uuid.UUID, session: AsyncSession = Depends(get_db)):
+    if not DEV_MODE:
+        raise HTTPException(status_code=404)
+
+    chain = []
+    current = await get_node_by_id_or_404(session, node_id)
+
+    while current:
+        chain.append({
+            "node_id": str(current.node_id),
+            "title": current.title,
+            "parent_id": str(current.parent_id) if current.parent_id else None
+        })
+
+        if not current.parent_id:
+            break
+
+        current = await session.get(type(current), current.parent_id)
+
+    return {
+        "lineage_depth": len(chain) - 1,
+        "chain": chain
+    }
+
+@router.get("/dev/nodes/{node_id}/chat-context")
+async def debug_chat_context(node_id: uuid.UUID, session: AsyncSession = Depends(get_db)):
+    if not DEV_MODE:
+        raise HTTPException(status_code=404)
+
+    ctx = await context_manager.build_chat_context(session, node_id)
+
+    return {
+        "system_prompt": ctx.get("system_prompt"),
+        "length_chars": len(ctx.get("system_prompt", "")),
+        "token_estimate": estimate_token_count(ctx.get("system_prompt", ""))
+    }
