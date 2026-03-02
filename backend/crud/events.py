@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.db_models import NodeEvent
+from ..models.db_models import NodeEvent
 import uuid
 
 async def insert_event(session: AsyncSession, node_id: uuid.UUID, event_type: str, payload: dict, user_id: str = None) -> NodeEvent:

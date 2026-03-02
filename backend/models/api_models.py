@@ -1,22 +1,24 @@
-from pydantic import BaseModel, Field, constr
-from typing import Optional, List, Dict, Any
+from pydantic import BaseModel, StringConstraints
+from typing import Optional, List, Dict, Any, Annotated
 from uuid import UUID
 from datetime import datetime
 
 # Request Models
 class CreateProjectRequest(BaseModel):
-    name: constr(min_length=1, max_length=200)
+    name: Annotated[str, StringConstraints(min_length=1, max_length=200)]
     description: Optional[str] = None
+    owner_id: int
 
 class UpdateProjectRequest(BaseModel):
-    name: Optional[constr(min_length=1, max_length=200)] = None
+    name: Optional[Annotated[str, StringConstraints(min_length=1, max_length=200)]] = None
     description: Optional[str] = None
+    owner_id: Optional[int] = None
 
 class CreateNodeRequest(BaseModel):
     project_id: Optional[UUID] = None
     parent_id: Optional[UUID] = None
-    title: constr(min_length=1, max_length=200)
-    node_type: str = "standard" 
+    title: Annotated[str, StringConstraints(min_length=1, max_length=200)]
+    node_type: str = "standard"
     initial_message: Optional[str] = None
 
 class SendMessageRequest(BaseModel):
@@ -32,12 +34,13 @@ class DeleteRequest(BaseModel):
 class CopyRequest(BaseModel):
     new_parent_id: Optional[UUID] = None
 
-# responce Models
+# Response Models
 
 class ProjectResponse(BaseModel):
     project_id: UUID
     name: str
     description: Optional[str]
+    owner_id: int
     created_at: datetime
     updated_at: Optional[datetime]
     node_count: int = 0
@@ -101,15 +104,14 @@ class TreeNodeResponse(BaseModel):
     children: List['TreeNodeResponse'] = []
 
 class InheritedContextResponse(BaseModel):
-    """Response model for inherited context from parent lineage"""
     node_id: UUID
-    facts: List[Dict[str, Any]] = []
-    decisions: List[Dict[str, Any]] = []
-    open_questions: List[str] = []
-    key_entities: List[str] = []
-    lineage_depth: int = 0
-    parent_title: Optional[str] = None
-    parent_node_id: Optional[UUID] = None
+    source: str  # "stored_snapshot" | "computed" | "none"
+    version: int = 1
+    lineage: Dict[str, Any]
+    knowledge: Dict[str, List[Dict[str, Any]]]
+    entities: List[Dict[str, Any]] = []
+    summary_ref: Dict[str, Any]
+    token_estimate: int = 0
 
 class GraphEdge(BaseModel):
     from_entity: str

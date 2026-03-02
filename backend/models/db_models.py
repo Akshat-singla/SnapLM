@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from database import Base
+from backend.database import Base
 
 class Project(Base):
     __tablename__ = "projects"
@@ -11,11 +11,14 @@ class Project(Base):
     project_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
+    # ownership relation
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     metadata_ = Column("metadata", JSON, default={})
     
     nodes = relationship("Node", back_populates="project", cascade="all, delete-orphan")
+    owner = relationship("User", back_populates="projects")
 
 class Node(Base):
     __tablename__ = "nodes"
@@ -97,3 +100,4 @@ class KnowledgeGraph(Base):
     __table_args__ = (
         UniqueConstraint('from_entity', 'to_entity', 'relation_type', 'source_node', name='uix_graph_edge'),
     )
+

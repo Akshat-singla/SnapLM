@@ -1,4 +1,4 @@
-from crud.events import insert_event
+from ..crud.events import insert_event
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
 
