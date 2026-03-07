@@ -1,12 +1,12 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
-    database_url: str
-    
+    database_url: str = "postgresql+asyncpg://pguser:mypassword@localhost:5432/snaplm"
     # Ai Model
     ollama_device_a_url: str = "http://localhost:11434"
     ollama_device_b_url: str = "http://localhost:11434"
-    
+
     log_level: str = "INFO"
 
     MODEL_MAIN_REASONER: str = "main-reasoner"
@@ -19,8 +19,11 @@ class Settings(BaseSettings):
     # How many recent messages the chat agent sees
     CHAT_RECENT_MESSAGES: int = 10
 
-    class Config:
-        env_file = ".env"
+    # The Pydantic V2 way to define settings configurations
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
+
 
 settings = Settings()
 

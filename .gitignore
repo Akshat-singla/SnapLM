@@ -67,3 +67,7 @@ htmlcov/
 # Ollama build artifacts
 backend/build/
 EOF
+
+# Alembic
+
+backend/alembic/versions/

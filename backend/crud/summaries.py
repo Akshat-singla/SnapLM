@@ -1,28 +1,38 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, desc
-from models.db_models import NodeSummary
 import uuid
 
-async def create_summary(session: AsyncSession, node_id: uuid.UUID, summary_json: dict, generated_from_event: uuid.UUID = None) -> NodeSummary:
+from models.db_models import NodeSummary
+from sqlalchemy import desc, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+
+async def create_summary(
+    session: AsyncSession,
+    node_id: uuid.UUID,
+    summary_json: dict,
+    generated_from_event: uuid.UUID = None,
+) -> NodeSummary:
     await session.execute(
         update(NodeSummary)
         .where(NodeSummary.node_id == node_id)
         .where(NodeSummary.is_latest == True)
         .values(is_latest=False)
     )
-    
+
     summary = NodeSummary(
         node_id=node_id,
         summary=summary_json,
         generated_from_event=generated_from_event,
-        is_latest=True
+        is_latest=True,
     )
     session.add(summary)
     await session.commit()
     await session.refresh(summary)
     return summary
 
-async def get_latest_summary(session: AsyncSession, node_id: uuid.UUID) -> NodeSummary | None:
+
+async def get_latest_summary(
+    session: AsyncSession, node_id: uuid.UUID
+) -> NodeSummary | None:
     result = await session.execute(
         select(NodeSummary)
         .where(NodeSummary.node_id == node_id)
