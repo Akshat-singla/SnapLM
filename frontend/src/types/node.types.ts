@@ -19,6 +19,7 @@ export interface Message {
   content: string;
   timestamp: string;
   metadata?: Record<string, any>;
+  hasImage?: boolean;
 }
 
 export interface CreateNodeRequest {
@@ -26,7 +27,7 @@ export interface CreateNodeRequest {
   parentId: string | null;
   projectId?: string | null;
   nodeType: NodeType;
-  initialMessage?: string; // Focus/context for the new branch - triggers immediate LLM response
+  initialMessage?: string;
 }
 
 export interface MergeNodeRequest {

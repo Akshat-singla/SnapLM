@@ -25,9 +25,6 @@ const ContextEdge = ({
   const highlightedPath = useStore((state) => state.highlightedPath);
   const selectedNodeId = useStore((state) => state.selectedNodeId);
 
-  // An edge is highlighted if both its source and target are in the highlighted path
-  // AND the target is "below" the source in the path order (which usually implies lineage)
-  // For simple checking: if both are in path, it's likely part of the lineage.
   const isHighlighted = highlightedPath.includes(source) && highlightedPath.includes(target);
   const isDimmed = selectedNodeId && !isHighlighted;
 

@@ -8,12 +8,12 @@ interface AppState {
   nodes: Node<NodeData>[];
   edges: Edge[];
   isInitialized: boolean;
-  
+
   // Project State
   projects: Project[];
   currentProjectId: string | null;
   createProjectModalOpen: boolean;
-  
+
   // UI State
   selectedNodeId: string | null;
   expandedNodeId: string | null;
@@ -36,19 +36,19 @@ interface AppState {
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
   onConnect: (connection: Connection) => void;
-  
+
   addNode: (node: Node<NodeData>) => void;
   updateNode: (id: string, data: Partial<NodeData>) => void;
   removeNode: (id: string) => void;
-  
+
   setSelectedNode: (id: string | null) => void;
   setExpandedNode: (id: string | null) => void;
   setCreatingBranchNodeId: (id: string | null) => void;
   setMergingNodeId: (id: string | null) => void;
   setHighlightedPath: (path: string[]) => void;
-  
+
   addMessage: (nodeId: string, message: Message) => void;
-  
+
   addToast: (toast: { type: 'success' | 'error' | 'info'; message: string }) => void;
   removeToast: (id: string) => void;
 }
@@ -87,13 +87,11 @@ const useStore = create<AppState>((set, get) => ({
   nodes: [],
   edges: [],
   isInitialized: false,
-  
-  // Project State
+
   projects: [],
   currentProjectId: null,
   createProjectModalOpen: false,
-  
-  // UI State
+
   selectedNodeId: null,
   expandedNodeId: null,
   creatingBranchNodeId: null,
@@ -103,7 +101,6 @@ const useStore = create<AppState>((set, get) => ({
   loading: {},
   toasts: [],
 
-  // Project Actions
   fetchProjects: async () => {
     try {
       set({ loading: { ...get().loading, projects: true } });
@@ -118,7 +115,7 @@ const useStore = create<AppState>((set, get) => ({
 
   setCurrentProject: async (id: string | null) => {
     set({ currentProjectId: id, nodes: [], edges: [], isInitialized: false });
-    
+
     if (id) {
       try {
         set({ loading: { ...get().loading, nodes: true } });
@@ -176,13 +173,13 @@ const useStore = create<AppState>((set, get) => ({
       nodes: applyNodeChanges(changes, get().nodes),
     });
   },
-  
+
   onEdgesChange: (changes) => {
     set({
       edges: applyEdgeChanges(changes, get().edges),
     });
   },
-  
+
   onConnect: (connection) => {
     set({
       edges: addEdge({ ...connection, type: 'context' }, get().edges),
@@ -219,13 +216,13 @@ const useStore = create<AppState>((set, get) => ({
   removeNode: (id) => {
     const { nodes, edges } = get();
     const nodeToRemove = nodes.find(n => n.id === id);
-    
+
     // Prevent deleting root
     if (nodeToRemove?.data.nodeType === 'root') {
-        set((state) => ({ 
-             toasts: [...state.toasts, { id: 'root-delete-err', type: 'error', message: 'Cannot delete root node' }] 
-        }));
-        return;
+      set((state) => ({
+        toasts: [...state.toasts, { id: 'root-delete-err', type: 'error', message: 'Cannot delete root node' }]
+      }));
+      return;
     }
 
     // Find parent of the deleted node (Grandparent to children)
@@ -236,32 +233,29 @@ const useStore = create<AppState>((set, get) => ({
 
     // Re-parent children
     const updatedNodes = nodes
-        .filter(n => n.id !== id) // Remove target node
-        .map(n => {
-            if (n.data.parentId === id) {
-                return { 
-                    ...n, 
-                    data: { ...n.data, parentId: parentId || null } // Set to grandparent or null if no grandparent
-                };
-            }
-            return n;
-        });
+      .filter(n => n.id !== id) // Remove target node
+      .map(n => {
+        if (n.data.parentId === id) {
+          return {
+            ...n,
+            data: { ...n.data, parentId: parentId || null } // Set to grandparent or null if no grandparent
+          };
+        }
+        return n;
+      });
 
-    // Update Edges
-    // 1. Remove edges connected to deleted node
-    // 2. Add edges from Parent -> Children (if Parent exists)
     let updatedEdges = edges.filter(e => e.source !== id && e.target !== id);
 
     if (parentId) {
-        const newEdges = children.map(child => ({
-            id: `e-${parentId}-${child.id}`,
-            source: parentId,
-            target: child.id,
-            type: 'context',
-            animated: false,
-            style: { strokeWidth: 1.5 }
-        }));
-        updatedEdges = [...updatedEdges, ...newEdges];
+      const newEdges = children.map(child => ({
+        id: `e-${parentId}-${child.id}`,
+        source: parentId,
+        target: child.id,
+        type: 'context',
+        animated: false,
+        style: { strokeWidth: 1.5 }
+      }));
+      updatedEdges = [...updatedEdges, ...newEdges];
     }
 
     set({
@@ -274,11 +268,10 @@ const useStore = create<AppState>((set, get) => ({
 
   setSelectedNode: (id) => {
     set({ selectedNodeId: id });
-    
-    // Calculate context path (trace back to root)
+
     if (!id) {
-        set({ highlightedPath: [] });
-        return;
+      set({ highlightedPath: [] });
+      return;
     }
 
     const { nodes } = get();
@@ -286,9 +279,9 @@ const useStore = create<AppState>((set, get) => ({
     let currentId: string | null = id;
 
     while (currentId) {
-        path.unshift(currentId);
-        const node = nodes.find(n => n.id === currentId);
-        currentId = node?.data.parentId || null;
+      path.unshift(currentId);
+      const node = nodes.find(n => n.id === currentId);
+      currentId = node?.data.parentId || null;
     }
 
     set({ highlightedPath: path });
@@ -300,10 +293,10 @@ const useStore = create<AppState>((set, get) => ({
 
   addMessage: (nodeId, message) => {
     set((state) => ({
-        messages: {
-            ...state.messages,
-            [nodeId]: [...(state.messages[nodeId] || []), message]
-        }
+      messages: {
+        ...state.messages,
+        [nodeId]: [...(state.messages[nodeId] || []), message]
+      }
     }));
   },
 

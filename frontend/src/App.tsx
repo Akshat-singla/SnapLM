@@ -11,7 +11,6 @@ import useStore from './store';
 function App() {
   const { fetchProjects, currentProjectId } = useStore();
 
-  // Fetch projects on app load
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);

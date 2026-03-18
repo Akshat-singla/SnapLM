@@ -11,24 +11,22 @@ const api = axios.create({
   },
 });
 
-// Mock implementations
-// Backend Response Types
 interface TreeNodeResponse {
-    node_id: string;
-    title: string;
-    status: NodeStatus;
-    node_type: NodeType;
-    children: TreeNodeResponse[];
-    position: { x: number; y: number };
-    message_count?: number;
-    merge_parent_id?: string | null;  // Secondary parent from merge operations
+  node_id: string;
+  title: string;
+  status: NodeStatus;
+  node_type: NodeType;
+  children: TreeNodeResponse[];
+  position: { x: number; y: number };
+  message_count?: number;
+  merge_parent_id?: string | null;  // Secondary parent from merge operations
 }
 
 export const nodesApi = {
   getNodes: async (): Promise<Node<NodeData>[]> => {
     const response = await api.get<TreeNodeResponse[]>('/nodes/tree');
     const treeRoots = response.data;
-    
+
     const flatten = (nodes: TreeNodeResponse[], parentId: string | null = null): Node<NodeData>[] => {
       let flatList: Node<NodeData>[] = [];
       for (const n of nodes) {
@@ -41,14 +39,14 @@ export const nodesApi = {
             status: n.status,
             nodeType: n.node_type,
             parentId: parentId,
-            mergeParentId: n.merge_parent_id || null,  // Map merge parent for dual edges
+
             messageCount: n.message_count || 0,
-            tokenCount: 0, // Not currently returned by tree API
-            lastActivity: new Date().toISOString(), // Placeholder
-            inheritedContext: "", // Placeholder
+            tokenCount: 0,
+            lastActivity: new Date().toISOString(),
+            inheritedContext: "",
           }
         });
-        
+
         if (n.children && n.children.length > 0) {
           flatList = flatList.concat(flatten(n.children, n.node_id));
         }
@@ -64,22 +62,17 @@ export const nodesApi = {
       title: data.title,
       node_type: data.nodeType || 'standard'
     };
-    
-    // Only include parent_id if it's a valid non-empty string
+
     if (data.parentId && data.parentId.trim() !== '') {
       payload.parent_id = data.parentId;
     }
-    
-    // Include project_id if provided
     if (data.projectId) {
       payload.project_id = data.projectId;
     }
-    
-    // Include initial_message for context transfer (triggers LLM response on backend)
     if (data.initialMessage && data.initialMessage.trim() !== '') {
       payload.initial_message = data.initialMessage;
     }
-    
+
     const response = await api.post('/nodes', payload);
     return response.data;
   },
@@ -92,6 +85,22 @@ export const nodesApi = {
       content: response.data.content,
       timestamp: response.data.timestamp,
       metadata: response.data.metadata
+    };
+  },
+
+  sendVisionMessage: async (nodeId: string, content: string, image: File): Promise<Message> => {
+    const formData = new FormData();
+    formData.append('content', content);
+    formData.append('image', image);
+    const response = await api.post(`/nodes/${nodeId}/messages/vision`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return {
+      id: response.data.message_id,
+      role: response.data.role,
+      content: response.data.content,
+      timestamp: response.data.timestamp,
+      metadata: response.data.metadata,
     };
   },
 
@@ -183,7 +192,7 @@ export const projectsApi = {
   getProjectNodes: async (projectId: string): Promise<Node<NodeData>[]> => {
     const response = await api.get<TreeNodeResponse[]>(`/projects/${projectId}/nodes/tree`);
     const treeRoots = response.data;
-    
+
     const flatten = (nodes: TreeNodeResponse[], parentId: string | null = null): Node<NodeData>[] => {
       let flatList: Node<NodeData>[] = [];
       for (const n of nodes) {
@@ -196,14 +205,14 @@ export const projectsApi = {
             status: n.status,
             nodeType: n.node_type,
             parentId: parentId,
-            mergeParentId: n.merge_parent_id || null,  // Map merge parent for dual edges
+            mergeParentId: n.merge_parent_id || null,
             messageCount: n.message_count || 0,
             tokenCount: 0,
             lastActivity: new Date().toISOString(),
             inheritedContext: "",
           }
         });
-        
+
         if (n.children && n.children.length > 0) {
           flatList = flatList.concat(flatten(n.children, n.node_id));
         }
