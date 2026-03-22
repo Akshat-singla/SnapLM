@@ -113,37 +113,39 @@ class ContextManager:
         return snapshot
 
     async def build_chat_context(self, session, node_id: str) -> dict:
-        """Returns {"system_prompt": str, "user_content": str} for chat agent."""
+        """Returns {"system_prompt": str} for chat agent."""
         node = await get_node(session, node_id)
         lineage = await get_node_lineage(session, node_id)
 
-        # PRIORITY 1: Use stored inherited_context if available (frozen snapshot)
+        # lineage[0] = current node, lineage[1] = parent, lineage[2] = grandparent...
         inherited_summary = ""
+
+        # PRIORITY 1: Use stored inherited_context snapshot (frozen at branch creation)
         if node and node.inherited_context:
             ctx = node.inherited_context
-            
+
             if ctx.get("facts"):
                 inherited_summary += "=== INHERITED FACTS ===\n"
                 for fact in ctx["facts"]:
                     f = fact.get("fact", str(fact)) if isinstance(fact, dict) else str(fact)
                     inherited_summary += f"- {f}\n"
-            
+
             if ctx.get("decisions"):
                 inherited_summary += "\n=== CONFIRMED DECISIONS ===\n"
                 for dec in ctx["decisions"]:
                     d = dec.get("decision", str(dec)) if isinstance(dec, dict) else str(dec)
                     inherited_summary += f"- [DECISION] {d}\n"
-            
+
             if ctx.get("key_entities"):
                 inherited_summary += f"\n=== KEY ENTITIES ===\n{', '.join(ctx['key_entities'][:20])}\n"
-            
+
             if ctx.get("open_questions"):
                 inherited_summary += "\n=== OPEN QUESTIONS ===\n"
                 for q in ctx["open_questions"][:5]:
                     inherited_summary += f"- {q}\n"
-            
-            # If no structured data, use conversation history
-            if ctx.get("conversation_history") and not ctx.get("facts") and not ctx.get("decisions"):
+
+            # Fallback to conversation history if no structured data
+            if not ctx.get("facts") and not ctx.get("decisions") and ctx.get("conversation_history"):
                 inherited_summary += "\n=== PREVIOUS CONVERSATION (from parent branch) ===\n"
                 parent_title = ctx.get("parent_title", "Parent")
                 inherited_summary += f"Context from: {parent_title}\n\n"
@@ -151,20 +153,25 @@ class ContextManager:
                     role = msg.get("role", "unknown")
                     content = msg.get("content", "")
                     inherited_summary += f"[{role}]: {content}\n\n"
-        else:
+
+        # PRIORITY 2: Walk ancestors from parent → root, most recent first
+        elif len(lineage) > 1:
             has_any_context = False
-            for ancestor in reversed(lineage[1:]):  
+            # lineage[1:] = [parent, grandparent, ...], iterate in that order (parent first)
+            for ancestor in lineage[1:]:
                 summary = await get_latest_summary(session, ancestor.node_id)
                 if summary:
+                    inherited_summary += f"\n--- From: {ancestor.title} ---\n"
                     inherited_summary += extract_key_points(summary.summary) + "\n"
                     has_any_context = True
-            
-            if not has_any_context and len(lineage) > 1:
+
+            # If still no summaries, pull raw messages from direct parent
+            if not has_any_context:
                 parent = lineage[1]
                 parent_messages = await get_messages(session, parent.node_id)
                 if parent_messages:
                     inherited_summary += f"\n=== PREVIOUS CONVERSATION (from {parent.title}) ===\n"
-                    for msg in parent_messages[-10:]:  
+                    for msg in parent_messages[-10:]:
                         if msg.role in ("user", "assistant"):
                             content = msg.content[:500] + "..." if len(msg.content) > 500 else msg.content
                             inherited_summary += f"[{msg.role}]: {content}\n\n"
@@ -181,7 +188,7 @@ class ContextManager:
             node_title=node.title if node else "Unknown",
             node_type=node.node_type if node else "standard"
         )
-        return {"system_prompt": system_prompt, "user_content": ""}
+        return {"system_prompt": system_prompt}
 
     async def build_summarize_context(self, session, node_id: str) -> dict:
         """Returns context for summarizer agent."""

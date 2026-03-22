@@ -112,6 +112,9 @@ async def create_node(
     )
 
     if request.initial_message:
+        # Build context BEFORE saving user message to avoid duplication in last_n_messages
+        chat_ctx = await context_manager.build_chat_context(session, node.node_id)
+
         user_msg_token_count = estimate_token_count(request.initial_message)
         await create_message(
             session, node.node_id, "user", request.initial_message, user_msg_token_count
@@ -122,8 +125,6 @@ async def create_node(
             "MESSAGE_ADDED",
             {"role": "user", "context": "initial_focus"},
         )
-
-        chat_ctx = await context_manager.build_chat_context(session, node.node_id)
 
         if node.node_type == "exploration":
             response_text, _ = await llm_service.exploration_chat(
@@ -168,6 +169,10 @@ async def send_message(
     node = await get_node_by_id_or_404(session, node_id)
     if node.status != "active":
         raise HTTPException(status_code=400, detail="Node is not active")
+
+    # Build context BEFORE saving user message to avoid it appearing in last_n_messages
+    chat_ctx = await context_manager.build_chat_context(session, node_id)
+
     user_msg_token_count = estimate_token_count(request.content)
     user_msg = await create_message(
         session, node_id, "user", request.content, user_msg_token_count
@@ -178,8 +183,6 @@ async def send_message(
         "MESSAGE_ADDED",
         {"role": "user", "message_id": str(user_msg.message_id)},
     )
-
-    chat_ctx = await context_manager.build_chat_context(session, node_id)
 
     fallback_from = None
     agent_used = "main-reasoner"
@@ -235,6 +238,9 @@ async def send_vision_message(
 
     image_bytes = await image.read()
 
+    # Build context BEFORE saving user message
+    chat_ctx = await context_manager.build_chat_context(session, node_id)
+
     user_msg_token_count = estimate_token_count(content)
     user_msg = await create_message(
         session, node_id, "user", content, user_msg_token_count,
@@ -242,7 +248,7 @@ async def send_vision_message(
     )
     await record_event(session, node_id, "MESSAGE_ADDED", {"role": "user", "has_image": True})
 
-    response_text = await llm_service.vision_chat(image_bytes, content)
+    response_text = await llm_service.vision_chat(image_bytes, content, chat_ctx["system_prompt"])
 
     asst_token_count = estimate_token_count(response_text)
     asst_msg = await create_message(session, node_id, "assistant", response_text, asst_token_count)
