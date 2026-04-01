@@ -45,11 +45,15 @@ from services.graph_service import (
 from services.llm_service import llm_service
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.helpers import estimate_token_count
+from routers.auth import router as authRouter 
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="SnapLM Backend", version="0.1.0")
+
+app.include_router(authRouter)
 
 # middleware for frontend-backend
 app.add_middleware(
