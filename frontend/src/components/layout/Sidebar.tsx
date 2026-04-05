@@ -5,9 +5,23 @@ import useStore from '../../store';
 import clsx from 'clsx';
 
 const Sidebar = () => {
-  const { nodes, selectedNodeId, setSelectedNode } = useStore();
+  const {
+    nodes,
+    selectedNodeId,
+    setSelectedNode,
+    projects,
+    currentProjectId,
+    setCurrentProject,
+    archiveProject,
+    unarchiveProject,
+  } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [isTreeExpanded, setIsTreeExpanded] = useState(true);
+  const [isArchiveExpanded, setIsArchiveExpanded] = useState(true);
+
+  const activeProjects = projects.filter((project) => !project.is_archived);
+  const archivedProjects = projects.filter((project) => project.is_archived);
+  const currentProject = projects.find((project) => project.project_id === currentProjectId);
 
   const filteredNodes = nodes.filter(node =>
     node.data.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -24,8 +38,8 @@ const Sidebar = () => {
             style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuAtQeCC8zYrrZQaiERkn75YGM4e_ojYkrKd9Anq_O7N91u-PZREynOZmHYfMQ1FMEffvNDkccDepKL8sNKZIw7eNY3BG5tEwS680tuEkNStvzRpJe5gkJaE3k7zMoLXrVrtd1BAaXLkXSc0yvXmsQd8hXNoOsixDODs2rDJgPT6jFA2h6Fq5fnoNfTHydqOAlnXuNthecIUeRo6WRsRDQoZD5Ak69ES4ucKVFomQ6qkfMfRepIz8N-syDp27HGj9CLMxuQ3QsToGz1G")' }}
           ></div>
           <div className="flex flex-col">
-            <h1 className="text-white text-base font-bold leading-tight">Project Alpha</h1>
-            <p className="text-slate-400 text-xs font-normal">Last edited 5m ago</p>
+            <h1 className="text-white text-base font-bold leading-tight truncate max-w-[180px]">{currentProject?.name || 'No Project Selected'}</h1>
+            <p className="text-slate-400 text-xs font-normal">{currentProject ? `${currentProject.node_count} nodes` : 'Choose a project below'}</p>
           </div>
         </div>
 
@@ -45,6 +59,90 @@ const Sidebar = () => {
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
+        {/* Projects Section */}
+        <div className="mb-4">
+          <div className="px-3 pb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Projects</div>
+
+          <div className="space-y-1 px-1">
+            {activeProjects.length > 0 ? (
+              activeProjects.map((project) => (
+                <div
+                  key={project.project_id}
+                  className={clsx(
+                    'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors',
+                    project.project_id === currentProjectId
+                      ? 'bg-primary/20 text-white'
+                      : 'text-slate-300 hover:bg-surface-border hover:text-white'
+                  )}
+                >
+                  <button
+                    onClick={() => setCurrentProject(project.project_id)}
+                    className="flex-1 text-left text-sm truncate"
+                    title={project.name}
+                  >
+                    {project.name}
+                  </button>
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      await archiveProject(project.project_id);
+                    }}
+                    className="text-slate-500 hover:text-slate-200 transition-colors"
+                    title="Archive project"
+                  >
+                    <Archive size={14} />
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div className="px-2 py-1.5 text-xs text-slate-500 italic">No active projects</div>
+            )}
+          </div>
+
+          <button
+            onClick={() => setIsArchiveExpanded((prev) => !prev)}
+            className="w-full mt-2 flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-border text-slate-400 hover:text-white transition-colors text-left"
+          >
+            <Archive size={16} />
+            <span className="text-sm font-medium flex-1">Archive</span>
+            <span className="text-xs text-slate-500">{archivedProjects.length}</span>
+            {isArchiveExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
+
+          <AnimatePresence>
+            {isArchiveExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="mt-1 ml-4 space-y-0.5 border-l border-surface-border/50 pl-2 overflow-hidden"
+              >
+                {archivedProjects.length > 0 ? (
+                  archivedProjects.map((project) => (
+                    <div key={project.project_id} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-slate-400 hover:bg-surface-border">
+                      <span className="flex-1 text-xs truncate" title={project.name}>{project.name}</span>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await unarchiveProject(project.project_id);
+                        }}
+                        className="text-xs text-primary hover:text-blue-400 transition-colors"
+                        title="Move back to active projects"
+                      >
+                        Restore
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-xs text-slate-500 italic">No archived projects</div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Tree View Section */}
         <div className="mb-2">
           <button
             onClick={() => setIsTreeExpanded(!isTreeExpanded)}

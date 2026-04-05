@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FolderOpen, Plus, ChevronDown } from 'lucide-react';
 import useStore from '../../store';
 
@@ -11,16 +11,34 @@ const ProjectSelector = () => {
     setCreateProjectModalOpen,
     loading 
   } = useStore();
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const currentProject = projects.find(p => p.project_id === currentProjectId);
+  const activeProjects = projects.filter((project) => !project.is_archived);
+  const archivedCount = projects.length - activeProjects.length;
 
   return (
-    <div className="relative group">
+    <div ref={containerRef} className="relative">
       <button 
+        onClick={() => setIsOpen((prev) => !prev)}
         className="flex items-center gap-2 px-3 py-1.5 bg-surface-dark/50 hover:bg-surface-dark border border-surface-border rounded-lg text-sm transition-colors"
       >
         <FolderOpen size={16} className="text-primary" />
@@ -31,10 +49,13 @@ const ProjectSelector = () => {
       </button>
 
       {/* Dropdown */}
-      <div className="absolute top-full left-0 mt-1 w-64 bg-surface-dark border border-surface-border rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+      <div className={`absolute top-full left-0 mt-1 w-64 bg-surface-dark border border-surface-border rounded-lg shadow-xl transition-all z-50 ${isOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
         <div className="p-2 border-b border-surface-border">
           <button
-            onClick={() => setCreateProjectModalOpen(true)}
+            onClick={() => {
+              setCreateProjectModalOpen(true);
+              setIsOpen(false);
+            }}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-primary hover:bg-primary/10 rounded-lg transition-colors"
           >
             <Plus size={16} />
@@ -45,15 +66,18 @@ const ProjectSelector = () => {
         <div className="max-h-64 overflow-y-auto p-2">
           {loading.projects ? (
             <div className="text-center text-slate-400 text-sm py-4">Loading...</div>
-          ) : projects.length === 0 ? (
+          ) : activeProjects.length === 0 ? (
             <div className="text-center text-slate-400 text-sm py-4">
-              No projects yet. Create one to get started!
+              No active projects. Create one to get started!
             </div>
           ) : (
-            projects.map(project => (
+            activeProjects.map(project => (
               <button
                 key={project.project_id}
-                onClick={() => setCurrentProject(project.project_id)}
+                onClick={() => {
+                  setCurrentProject(project.project_id);
+                  setIsOpen(false);
+                }}
                 className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors ${
                   project.project_id === currentProjectId 
                     ? 'bg-primary/20 text-white' 
@@ -68,6 +92,12 @@ const ProjectSelector = () => {
               </button>
             ))
           )}
+
+          {archivedCount > 0 ? (
+            <div className="mt-2 px-3 py-2 text-xs text-slate-500 border-t border-surface-border">
+              {archivedCount} archived project{archivedCount > 1 ? 's' : ''} in Sidebar Archive
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

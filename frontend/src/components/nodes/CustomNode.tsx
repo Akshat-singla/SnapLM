@@ -1,10 +1,12 @@
-import { memo, useState } from 'react';
+//import { memo, useState } from 'react';
+import { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
-import { Lock, Sparkles, Lightbulb, ChevronDown } from 'lucide-react';
+import { Lock, Sparkles, Lightbulb, ChevronDown, Archive } from 'lucide-react';
 import clsx from 'clsx';
 import type { NodeData } from '../../types/node.types';
 import useStore from '../../store';
 import { nodesApi } from '../../services/api/client';
+import { getOutgoers } from 'reactflow';
 
 const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }) => {
   const isRoot = data.nodeType === 'root';
@@ -17,10 +19,19 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
   const addToast = useStore(state => state.addToast);
   const highlightedPath = useStore(state => state.highlightedPath);
   const selectedNodeId = useStore(state => state.selectedNodeId);
-  const [_isDeleting, setIsDeleting] = useState(false);
+  const setSelectedNode = useStore(state => state.setSelectedNode);
+  const archiveNodeBranch = useStore(state => state.archiveNodeBranch);
+  const nodes = useStore(state => state.nodes);
+  const edges = useStore(state => state.edges);
+  //const [_isDeleting, setIsDeleting] = useState(false);
 
   const isHighlighted = highlightedPath.includes(id);
   const isDimmed = selectedNodeId && !isHighlighted;
+
+   // Check if this is a leaf node (no outgoing edges)
+  const currentNode = nodes.find(n => n.id === id);
+  const isLeaf = currentNode ? getOutgoers(currentNode, nodes, edges).length === 0 : false;
+
 
   const handleExpand = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -42,8 +53,8 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
     if (!confirm('Are you sure you want to delete this node? Children will be re-parented.')) {
       return;
     }
-
-    setIsDeleting(true);
+    
+   
     try {
       await nodesApi.deleteNode(id);
       removeNode(id);
@@ -51,8 +62,17 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
     } catch (error) {
       console.error('Failed to delete node:', error);
       addToast({ type: 'error', message: 'Failed to delete node' });
-    } finally {
-      setIsDeleting(false);
+    } 
+  };
+
+    const handleArchiveBranch = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      setSelectedNode(id);
+      await archiveNodeBranch(id);
+    } catch (error) {
+      console.error('Failed to archive branch:', error);
+      addToast({ type: 'error', message: 'Failed to archive branch' });
     }
   };
 
@@ -68,6 +88,19 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
         isDimmed && "opacity-40 hover:opacity-100"
       )}
     >
+
+         {/* Archive Button - Leaf Node Only */}
+      {isLeaf  && (data.status as string) !== 'archived' &&(
+        <button
+          onClick={handleArchiveBranch}
+          className="absolute right-2 top-2 rounded-md p-1 text-slate-400 hover:text-white hover:bg-surface-border transition-colors z-10"
+          title="Archive this branch"
+        >
+          <Archive size={14} />
+        </button>
+      )}
+
+      {/* Handles */}
       <Handle type="target" position={Position.Top} className="!bg-transparent !border-none" />
       <Handle type="source" position={Position.Bottom} className="!bg-transparent !border-none" />
 
