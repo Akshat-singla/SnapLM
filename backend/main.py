@@ -772,7 +772,7 @@ from crud.nodes import create_node as crud_create_node
 from crud.nodes import get_tree as crud_get_tree
 from crud.summaries import create_summary, get_latest_summary
 from database import get_db, init_db
-from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from models.api_models import (
     CopyRequest,
@@ -803,11 +803,15 @@ from services.graph_service import (
 from services.llm_service import llm_service
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.helpers import estimate_token_count
+from routers.auth import router as authRouter 
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="SnapLM Backend", version="0.1.0")
+
+app.include_router(authRouter)
 
 # middleware for frontend-backend
 app.add_middleware(
@@ -870,6 +874,9 @@ async def create_node(
     )
 
     if request.initial_message:
+        # Build context BEFORE saving user message to avoid duplication in last_n_messages
+        chat_ctx = await context_manager.build_chat_context(session, node.node_id)
+
         user_msg_token_count = estimate_token_count(request.initial_message)
         await create_message(
             session, node.node_id, "user", request.initial_message, user_msg_token_count
@@ -880,8 +887,6 @@ async def create_node(
             "MESSAGE_ADDED",
             {"role": "user", "context": "initial_focus"},
         )
-
-        chat_ctx = await context_manager.build_chat_context(session, node.node_id)
 
         if node.node_type == "exploration":
             response_text, _ = await llm_service.exploration_chat(
@@ -926,6 +931,10 @@ async def send_message(
     node = await get_node_by_id_or_404(session, node_id)
     if node.status != "active":
         raise HTTPException(status_code=400, detail="Node is not active")
+
+    # Build context BEFORE saving user message to avoid it appearing in last_n_messages
+    chat_ctx = await context_manager.build_chat_context(session, node_id)
+
     user_msg_token_count = estimate_token_count(request.content)
     user_msg = await create_message(
         session, node_id, "user", request.content, user_msg_token_count
@@ -936,8 +945,6 @@ async def send_message(
         "MESSAGE_ADDED",
         {"role": "user", "message_id": str(user_msg.message_id)},
     )
-
-    chat_ctx = await context_manager.build_chat_context(session, node_id)
 
     fallback_from = None
     agent_used = "main-reasoner"
@@ -977,6 +984,47 @@ async def send_message(
         metadata=asst_msg.metadata_,
         agent_used=agent_used,
         fallback_from=fallback_from,
+    )
+
+
+@app.post("/api/v1/nodes/{node_id}/messages/vision", response_model=MessageResponse)
+async def send_vision_message(
+    node_id: uuid.UUID,
+    content: str = Form(...),
+    image: UploadFile = File(...),
+    session: AsyncSession = Depends(get_db),
+):
+    node = await get_node_by_id_or_404(session, node_id)
+    if node.status != "active":
+        raise HTTPException(status_code=400, detail="Node is not active")
+
+    image_bytes = await image.read()
+
+    # Build context BEFORE saving user message
+    chat_ctx = await context_manager.build_chat_context(session, node_id)
+
+    user_msg_token_count = estimate_token_count(content)
+    user_msg = await create_message(
+        session, node_id, "user", content, user_msg_token_count,
+        metadata={"has_image": True, "image_filename": image.filename}
+    )
+    await record_event(session, node_id, "MESSAGE_ADDED", {"role": "user", "has_image": True})
+
+    response_text = await llm_service.vision_chat(image_bytes, content, chat_ctx["system_prompt"])
+
+    asst_token_count = estimate_token_count(response_text)
+    asst_msg = await create_message(session, node_id, "assistant", response_text, asst_token_count)
+    await record_event(session, node_id, "MESSAGE_ADDED", {"role": "assistant", "context": "vision_response"})
+
+    return MessageResponse(
+        message_id=asst_msg.message_id,
+        node_id=asst_msg.node_id,
+        role=asst_msg.role,
+        content=asst_msg.content,
+        timestamp=asst_msg.timestamp,
+        token_count=asst_msg.token_count,
+        metadata=asst_msg.metadata_,
+        agent_used="moondream",
     )
 
 

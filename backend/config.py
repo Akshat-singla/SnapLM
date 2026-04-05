@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     ollama_device_b_url: str = "http://localhost:11434"
 
     log_level: str = "INFO"
+    jwt_secret : str = "sample-secret"
 
     MODEL_MAIN_REASONER: str = "main-reasoner"
     MODEL_GRAPH_BUILDER: str = "graph-builder"
