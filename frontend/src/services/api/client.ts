@@ -5,7 +5,7 @@ import type { Node } from 'reactflow';
 
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
+  baseURL: import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -145,6 +145,7 @@ export interface Project {
   project_id: string;
   name: string;
   description: string | null;
+  is_archived: boolean;
   created_at: string;
   updated_at: string | null;
   node_count: number;
@@ -173,6 +174,16 @@ export const projectsApi = {
 
   updateProject: async (projectId: string, data: Partial<CreateProjectRequest>): Promise<Project> => {
     const response = await api.put<Project>(`/projects/${projectId}`, data);
+    return response.data;
+  },
+
+  archiveProject: async (projectId: string): Promise<Project> => {
+    const response = await api.put<Project>(`/projects/${projectId}`, { is_archived: true });
+    return response.data;
+  },
+
+  unarchiveProject: async (projectId: string): Promise<Project> => {
+    const response = await api.put<Project>(`/projects/${projectId}`, { is_archived: false });
     return response.data;
   },
 
