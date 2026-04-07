@@ -1,6 +1,7 @@
 import json
 import logging
 import uuid
+from typing import Annotated
 
 from crud.messages import create_message
 from crud.messages import get_messages as crud_get_messages
@@ -13,10 +14,17 @@ from crud.nodes import (
 from crud.nodes import create_node as crud_create_node
 from crud.nodes import get_tree as crud_get_tree
 from crud.summaries import create_summary, get_latest_summary
+from crud.users import (
+    create_user as crud_create_user,
+    get_user_or_404,
+    list_projects_for_user,
+    update_user as crud_update_user,
+)
 from database import get_db, init_db
-from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from models.api_models import (
+    BranchGraphPayload,
     CopyRequest,
     CreateNodeRequest,
     CreateProjectRequest,
@@ -29,13 +37,23 @@ from models.api_models import (
     MessageResponse,
     NodeResponse,
     ProjectResponse,
+    RegisterUserRequest,
     SendMessageRequest,
+    ShareBranchRequest,
+    ShareBranchResponse,
+    ShareProjectResponse,
+    SharedWorkspaceNode,
+    SharedWorkspaceResponse,
     SummarizeResponse,
     TreeNodeResponse,
+    UpdateNodePositionRequest,
     UpdateProjectRequest,
+    UpdateUserProfileRequest,
+    UserProfileResponse,
 )
 from services.context_manager import context_manager
 from services.event_processor import record_event
+from services.branch_share_service import build_branch_graph_data
 from services.graph_service import (
     get_lineage_graph,
     merge_graphs,
@@ -49,7 +67,42 @@ from utils.helpers import estimate_token_count
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="SnapLM Backend", version="0.1.0")
+app = FastAPI(
+    title="SnapLM Backend",
+    version="0.1.0",
+    description=(
+        "Node-based canvas API: projects, chat nodes, merges, and optional LLM features. "
+        "**Profile:** `X-User-Id` header identifies the user; `GET /api/v1/user/profile` and "
+        "`PUT /api/v1/user/profile/update` return/update username, email, and owned projects. "
+        "**Share Brain (full workspace):** `POST /api/v1/projects/{id}/share` issues a token for "
+        "read-only access to the whole project. "
+        "**Share branch (subtree only):** `POST /api/v1/canvas/share-branch` stores a snapshot of "
+        "the selected root node plus descendants; `GET /api/v1/canvas/import-branch/{share_id}` "
+        "retrieves that JSON for read-only viewing."
+    ),
+)
+
+
+def _parse_optional_user_uuid(
+    x_user_id: Annotated[str | None, Header(alias="X-User-Id")] = None,
+) -> uuid.UUID | None:
+    if not x_user_id or not str(x_user_id).strip():
+        return None
+    try:
+        return uuid.UUID(str(x_user_id).strip())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid X-User-Id header")
+
+
+def _require_user_uuid(
+    x_user_id: Annotated[str | None, Header(alias="X-User-Id")] = None,
+) -> uuid.UUID:
+    if not x_user_id or not str(x_user_id).strip():
+        raise HTTPException(status_code=400, detail="X-User-Id header is required")
+    try:
+        return uuid.UUID(str(x_user_id).strip())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid X-User-Id header")
 
 # middleware for frontend-backend
 app.add_middleware(
@@ -76,6 +129,8 @@ async def create_node(
 ):
     if request.parent_id:
         await get_node_by_id_or_404(session, request.parent_id)
+    if request.merge_parent_id:
+        await get_node_by_id_or_404(session, request.merge_parent_id)
 
     pos_x, pos_y = await calculate_position(session, request.parent_id)
 
@@ -92,6 +147,7 @@ async def create_node(
         "title": request.title,
         "project_id": request.project_id,
         "parent_id": request.parent_id,
+        "merge_parent_id": request.merge_parent_id,
         "node_type": request.node_type,
         "position_x": pos_x,
         "position_y": pos_y,
@@ -149,6 +205,7 @@ async def create_node(
         node_id=node.node_id,
         project_id=node.project_id,
         parent_id=node.parent_id,
+        merge_parent_id=node.merge_parent_id,
         title=node.title,
         node_type=node.node_type,
         status=node.status,
@@ -399,6 +456,33 @@ async def copy_node(
     )
 
 
+@app.patch("/api/v1/nodes/{node_id}/position", response_model=NodeResponse)
+async def update_node_position(
+    node_id: uuid.UUID,
+    request: UpdateNodePositionRequest,
+    session: AsyncSession = Depends(get_db),
+):
+    node = await get_node_by_id_or_404(session, node_id)
+    node.position_x = request.x
+    node.position_y = request.y
+    await session.commit()
+    await session.refresh(node)
+
+    return NodeResponse(
+        node_id=node.node_id,
+        project_id=node.project_id,
+        parent_id=node.parent_id,
+        merge_parent_id=node.merge_parent_id,
+        title=node.title,
+        node_type=node.node_type,
+        status=node.status,
+        position={"x": node.position_x, "y": node.position_y},
+        created_at=node.created_at,
+        created_by=node.created_by,
+        metadata=node.metadata_ or {},
+    )
+
+
 @app.get("/api/v1/nodes/tree", response_model=list[TreeNodeResponse])
 async def get_tree(session: AsyncSession = Depends(get_db)):
     nodes = await crud_get_tree(session)
@@ -432,6 +516,7 @@ async def get_tree(session: AsyncSession = Depends(get_db)):
             has_summary=n.node_id in node_summaries,
             summary_text=summary_text,
             merge_parent_id=n.merge_parent_id,
+            inherited_context=n.inherited_context,
             position={"x": n.position_x, "y": n.position_y},
             children=[],
         )
@@ -541,16 +626,20 @@ async def get_inherited_context(
 # PROJECT ENDPOINTS
 # ========================
 
-from models.db_models import Project
+from models.db_models import Project, SharedProject, User, WorkspaceShare
 from sqlalchemy import func as sql_func
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 
 @app.post("/api/v1/projects", response_model=ProjectResponse)
 async def create_project(
-    request: CreateProjectRequest, session: AsyncSession = Depends(get_db)
+    request: CreateProjectRequest,
+    session: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID | None = Depends(_parse_optional_user_uuid),
 ):
-    project = Project(name=request.name, description=request.description)
+    project = Project(
+        name=request.name, description=request.description, owner_id=user_id
+    )
     session.add(project)
     await session.commit()
     await session.refresh(project)
@@ -592,16 +681,20 @@ async def create_project(
 
 
 @app.get("/api/v1/projects", response_model=list[ProjectResponse])
-async def list_projects(session: AsyncSession = Depends(get_db)):
+async def list_projects(
+    session: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID | None = Depends(_parse_optional_user_uuid),
+):
     from models.db_models import Node
 
-    # node count
-    result = await session.execute(
+    base = (
         select(Project, sql_func.count(Node.node_id).label("node_count"))
         .outerjoin(Node, Project.project_id == Node.project_id)
         .group_by(Project.project_id)
-        .order_by(Project.created_at.desc())
     )
+    if user_id is not None:
+        base = base.where(Project.owner_id == user_id)
+    result = await session.execute(base.order_by(Project.created_at.desc()))
 
     projects = []
     for row in result:
@@ -743,6 +836,7 @@ async def get_project_tree(
             has_summary=n.node_id in node_summaries,
             summary_text=summary_text,
             merge_parent_id=n.merge_parent_id,
+            inherited_context=n.inherited_context,
             position={"x": n.position_x, "y": n.position_y},
             children=[],
         )
@@ -754,3 +848,284 @@ async def get_project_tree(
             roots.append(node_map[n.node_id])
 
     return roots
+
+
+@app.post("/api/v1/projects/{project_id}/share", response_model=ShareProjectResponse)
+async def create_project_share(
+    project_id: uuid.UUID, session: AsyncSession = Depends(get_db)
+):
+    result = await session.execute(
+        select(Project).where(Project.project_id == project_id)
+    )
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    token = uuid.uuid4().hex
+    share = WorkspaceShare(project_id=project_id, share_token=token, is_active=True)
+    session.add(share)
+    await session.commit()
+
+    share_url = f"/shared/{token}"
+    return ShareProjectResponse(
+        project_id=project_id,
+        share_token=token,
+        share_url=share_url,
+    )
+
+
+@app.get("/api/v1/shared/{share_token}", response_model=SharedWorkspaceResponse)
+async def get_shared_workspace(
+    share_token: str, session: AsyncSession = Depends(get_db)
+):
+    result = await session.execute(
+        select(WorkspaceShare).where(
+            WorkspaceShare.share_token == share_token,
+            WorkspaceShare.is_active == True,
+        )
+    )
+    share = result.scalar_one_or_none()
+    if not share:
+        raise HTTPException(status_code=404, detail="Shared workspace not found")
+
+    project_result = await session.execute(
+        select(Project).where(Project.project_id == share.project_id)
+    )
+    project = project_result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    nodes = await crud_get_tree(session, project_id=project.project_id)
+
+    node_count = len(nodes)
+
+    project_response = ProjectResponse(
+        project_id=project.project_id,
+        name=project.name,
+        description=project.description,
+        created_at=project.created_at,
+        updated_at=project.updated_at,
+        node_count=node_count,
+    )
+
+    shared_nodes = [
+        SharedWorkspaceNode(
+            node_id=n.node_id,
+            title=n.title,
+            status=n.status,
+            node_type=n.node_type,
+            parent_id=n.parent_id,
+            merge_parent_id=n.merge_parent_id,
+            inherited_context=n.inherited_context,
+            position={"x": n.position_x, "y": n.position_y},
+        )
+        for n in nodes
+    ]
+
+    messages_by_node = {}
+    for n in nodes:
+        msgs = await crud_get_messages(session, n.node_id)
+        messages_by_node[str(n.node_id)] = [
+            MessageResponse(
+                message_id=m.message_id,
+                node_id=m.node_id,
+                role=m.role,
+                content=m.content,
+                timestamp=m.timestamp,
+                token_count=m.token_count,
+                metadata=m.metadata_ or {},
+                agent_used=None,
+                fallback_from=None,
+            )
+            for m in msgs
+        ]
+
+    return SharedWorkspaceResponse(
+        project=project_response,
+        nodes=shared_nodes,
+        messages_by_node=messages_by_node,
+    )
+
+
+# ========================
+# USER / PROFILE
+# ========================
+
+
+@app.post("/api/v1/user/register", response_model=UserProfileResponse)
+async def register_user(
+    request: RegisterUserRequest, session: AsyncSession = Depends(get_db)
+):
+    existing = await session.execute(
+        select(User)
+        .where(
+            or_(
+                User.username == request.username,
+                User.email == request.email,
+            )
+        )
+        .limit(1)
+    )
+    if existing.scalars().first():
+        raise HTTPException(
+            status_code=409, detail="Username or email already registered"
+        )
+
+    user = await crud_create_user(session, request.username, request.email)
+    return UserProfileResponse(
+        user_id=user.user_id,
+        username=user.username,
+        email=user.email,
+        created_at=user.created_at,
+        projects=[],
+    )
+
+
+@app.get("/api/v1/user/profile", response_model=UserProfileResponse)
+async def get_user_profile(
+    session: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID = Depends(_require_user_uuid),
+):
+    user = await get_user_or_404(session, user_id)
+    owned = await list_projects_for_user(session, user_id)
+
+    from models.db_models import Node
+
+    projects_out: list[ProjectResponse] = []
+    for project in owned:
+        count_result = await session.execute(
+            select(sql_func.count(Node.node_id)).where(Node.project_id == project.project_id)
+        )
+        node_count = count_result.scalar() or 0
+        projects_out.append(
+            ProjectResponse(
+                project_id=project.project_id,
+                name=project.name,
+                description=project.description,
+                created_at=project.created_at,
+                updated_at=project.updated_at,
+                node_count=node_count,
+            )
+        )
+
+    return UserProfileResponse(
+        user_id=user.user_id,
+        username=user.username,
+        email=user.email,
+        created_at=user.created_at,
+        projects=projects_out,
+    )
+
+
+@app.put("/api/v1/user/profile/update", response_model=UserProfileResponse)
+async def update_user_profile(
+    request: UpdateUserProfileRequest,
+    session: AsyncSession = Depends(get_db),
+    user_id: uuid.UUID = Depends(_require_user_uuid),
+):
+    if request.username is None and request.email is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide at least one of: username, email",
+        )
+
+    user = await crud_update_user(
+        session,
+        user_id,
+        username=request.username,
+        email=request.email,
+    )
+
+    owned = await list_projects_for_user(session, user_id)
+    from models.db_models import Node
+
+    projects_out: list[ProjectResponse] = []
+    for project in owned:
+        count_result = await session.execute(
+            select(sql_func.count(Node.node_id)).where(Node.project_id == project.project_id)
+        )
+        node_count = count_result.scalar() or 0
+        projects_out.append(
+            ProjectResponse(
+                project_id=project.project_id,
+                name=project.name,
+                description=project.description,
+                created_at=project.created_at,
+                updated_at=project.updated_at,
+                node_count=node_count,
+            )
+        )
+
+    return UserProfileResponse(
+        user_id=user.user_id,
+        username=user.username,
+        email=user.email,
+        created_at=user.created_at,
+        projects=projects_out,
+    )
+
+
+# ========================
+# CANVAS BRANCH SHARE / IMPORT
+# ========================
+
+
+@app.post("/api/v1/canvas/share-branch", response_model=ShareBranchResponse)
+async def share_branch(
+    request: ShareBranchRequest, session: AsyncSession = Depends(get_db)
+):
+    proj_result = await session.execute(
+        select(Project).where(Project.project_id == request.project_id)
+    )
+    project = proj_result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    graph_data = await build_branch_graph_data(
+        session,
+        request.project_id,
+        request.root_node_id,
+        project.name,
+    )
+    if not graph_data:
+        raise HTTPException(
+            status_code=404, detail="Root node not found or not in this project"
+        )
+
+    row = SharedProject(
+        project_id=request.project_id,
+        root_node_id=request.root_node_id,
+        graph_data=graph_data,
+        shared_with_user=request.shared_with_user.strip(),
+    )
+    session.add(row)
+    await session.commit()
+    await session.refresh(row)
+
+    return ShareBranchResponse(
+        share_id=row.share_id,
+        project_id=row.project_id,
+        root_node_id=row.root_node_id,
+        shared_with_user=row.shared_with_user,
+    )
+
+
+@app.get(
+    "/api/v1/canvas/import-branch/{share_id}",
+    response_model=BranchGraphPayload,
+)
+async def import_branch(share_id: uuid.UUID, session: AsyncSession = Depends(get_db)):
+    result = await session.execute(
+        select(SharedProject).where(SharedProject.share_id == share_id)
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Shared branch not found")
+
+    data = row.graph_data or {}
+    return BranchGraphPayload(
+        nodes=data.get("nodes", []),
+        edges=data.get("edges", []),
+        messages=data.get("messages", {}),
+        meta=data.get("meta"),
+    )

@@ -15,6 +15,7 @@ class UpdateProjectRequest(BaseModel):
 class CreateNodeRequest(BaseModel):
     project_id: Optional[UUID] = None
     parent_id: Optional[UUID] = None
+    merge_parent_id: Optional[UUID] = None
     title: constr(min_length=1, max_length=200)
     node_type: str = "standard" 
     initial_message: Optional[str] = None
@@ -32,6 +33,10 @@ class DeleteRequest(BaseModel):
 class CopyRequest(BaseModel):
     new_parent_id: Optional[UUID] = None
 
+class UpdateNodePositionRequest(BaseModel):
+    x: float
+    y: float
+
 # responce Models
 
 class ProjectResponse(BaseModel):
@@ -46,6 +51,7 @@ class NodeResponse(BaseModel):
     node_id: UUID
     project_id: Optional[UUID]
     parent_id: Optional[UUID]
+    merge_parent_id: Optional[UUID] = None
     title: str
     node_type: str
     status: str
@@ -95,8 +101,9 @@ class TreeNodeResponse(BaseModel):
     node_type: str
     message_count: Optional[int] = 0
     has_summary: bool
-    summary_text: Optional[str] = None  
-    merge_parent_id: Optional[UUID] = None  
+    summary_text: Optional[str] = None
+    merge_parent_id: Optional[UUID] = None
+    inherited_context: Optional[Dict[str, Any]] = None
     position: Dict[str, float] = {"x": 0.0, "y": 0.0}
     children: List['TreeNodeResponse'] = []
 
@@ -122,6 +129,69 @@ class GraphResponse(BaseModel):
     node_id: UUID
     entities: List[str]
     relations: List[GraphEdge]
+
+class ShareProjectResponse(BaseModel):
+    project_id: UUID
+    share_token: str
+    share_url: str
+
+class SharedWorkspaceNode(BaseModel):
+    node_id: UUID
+    title: str
+    status: str
+    node_type: str
+    parent_id: Optional[UUID] = None
+    merge_parent_id: Optional[UUID] = None
+    inherited_context: Optional[Dict[str, Any]] = None
+    position: Dict[str, float]
+
+class SharedWorkspaceResponse(BaseModel):
+    project: ProjectResponse
+    nodes: List[SharedWorkspaceNode]
+    messages_by_node: Dict[str, List[MessageResponse]]
+
+
+# User / profile
+class RegisterUserRequest(BaseModel):
+    username: constr(min_length=1, max_length=100)
+    email: constr(min_length=1, max_length=255)
+
+
+class UpdateUserProfileRequest(BaseModel):
+    username: Optional[constr(min_length=1, max_length=100)] = None
+    email: Optional[constr(min_length=1, max_length=255)] = None
+
+
+class UserProfileResponse(BaseModel):
+    user_id: UUID
+    username: str
+    email: str
+    created_at: datetime
+    projects: List[ProjectResponse]
+
+
+# Branch share (canvas)
+class ShareBranchRequest(BaseModel):
+    project_id: UUID
+    root_node_id: UUID
+    shared_with_user: str = Field(..., min_length=1, max_length=255)
+
+
+class ShareBranchResponse(BaseModel):
+    share_id: UUID
+    project_id: UUID
+    root_node_id: UUID
+    shared_with_user: str
+
+
+class BranchGraphPayload(BaseModel):
+    """Subset of stored graph_data for typed responses; meta is optional."""
+
+    nodes: List[Dict[str, Any]]
+    edges: List[Dict[str, Any]]
+    messages: Dict[str, List[Dict[str, Any]]]
+    meta: Optional[Dict[str, Any]] = None
+
 
 # Recursive model update
 TreeNodeResponse.model_rebuild()

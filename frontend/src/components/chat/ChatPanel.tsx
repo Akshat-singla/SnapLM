@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, CheckSquare, Minimize2, Send, Mic, 
-  History, Bot, CornerUpLeft
+  History, Bot, CornerUpLeft, Share2
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import useStore from '../../store';
@@ -29,8 +29,8 @@ const getAncestorChain = (nodeId: string, nodes: Node<NodeData>[]): Node<NodeDat
 };
 
 const ChatPanel = () => {
-  const { expandedNodeId, nodes, messages, setExpandedNode, addMessage: addStoreMessage } = useStore();
-  
+  const { expandedNodeId, nodes, messages, setExpandedNode, addMessage: addStoreMessage, createShareLink, isReadOnly } = useStore();
+
   // Compute ancestor chain for lineage display
   const ancestors = useMemo(() => {
     if (!expandedNodeId) return [];
@@ -122,6 +122,13 @@ const ChatPanel = () => {
                     </span>
                 </div>
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => createShareLink()}
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors"
+                    >
+                        <Share2 size={14} />
+                        Brain Sharing
+                    </button>
                     <button onClick={handleClose} className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
                         <Minimize2 size={20} />
                     </button>
@@ -129,7 +136,7 @@ const ChatPanel = () => {
                         <X size={20} />
                     </button>
                 </div>
-            </div>
+</div>
 
             {/* Lineage Summary */}
             <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white dark:from-[#1a202a] dark:to-[#151a23]">
@@ -211,7 +218,12 @@ const ChatPanel = () => {
             )}
         </div>
 
-        {/* Input Area */}
+        {/* Input Area — hidden in read-only shared view */}
+        {isReadOnly ? (
+          <div className="p-4 bg-white dark:bg-[#151a23] border-t border-gray-200 dark:border-[#282e39] text-center text-sm text-slate-400">
+            This is a shared read-only workspace. You cannot send messages.
+          </div>
+        ) : (
         <div className="p-4 bg-white dark:bg-[#151a23] border-t border-gray-200 dark:border-[#282e39]">
             <div className="relative flex items-end gap-2 bg-gray-50 dark:bg-[#1c222e] border border-gray-200 dark:border-[#282e39] rounded-xl p-2 shadow-sm focus-within:ring-1 focus-within:ring-primary focus-within:border-primary transition-all">
                 <button className="p-2 text-slate-400 hover:text-primary rounded-lg transition-colors self-end mb-0.5">
@@ -243,6 +255,7 @@ const ChatPanel = () => {
                 </div>
             </div>
         </div>
+        )}
 
       </div>
       </motion.div>

@@ -76,7 +76,7 @@ async def get_tree(
 async def calculate_position(
     session: AsyncSession, parent_id: uuid.UUID | None
 ) -> tuple[float, float]:
-    """Simple grid layout: parent.x, parent.y + 100. If multiple children, shift x."""
+    """Simple grid layout: parent.x, parent.y + 200. If multiple children, shift x."""
     if not parent_id:
         return 0.0, 0.0
 
@@ -84,12 +84,10 @@ async def calculate_position(
     if not parent:
         return 0.0, 0.0
 
+    from sqlalchemy import func
     result = await session.execute(
         select(func.count()).select_from(Node).where(Node.parent_id == parent_id)
     )
     sibling_count = result.scalar_one()
 
     return parent.position_x + (sibling_count * 200), parent.position_y + 200.0
-
-
-from sqlalchemy import func

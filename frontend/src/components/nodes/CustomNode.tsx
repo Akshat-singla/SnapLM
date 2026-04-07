@@ -125,12 +125,17 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
                     <div className="w-6 h-6 rounded-full bg-slate-700 border border-background-dark flex items-center justify-center text-xs text-white">A</div>
                     <div className="w-6 h-6 rounded-full bg-primary border border-background-dark flex items-center justify-center text-xs text-white">B</div>
                 </div>
-                <button 
-                    onClick={handleExpand}
-                    className="text-primary text-sm font-bold hover:underline flex items-center gap-1"
-                >
-                    Expand <ChevronDown size={16} />
-                </button>
+                <div className="flex items-center gap-2">
+                  {data.isReadOnly && (
+                    <span className="text-[10px] text-slate-400 bg-slate-700/50 px-2 py-0.5 rounded">Read-only</span>
+                  )}
+                  <button 
+                      onClick={handleExpand}
+                      className="text-primary text-sm font-bold hover:underline flex items-center gap-1"
+                  >
+                      Expand <ChevronDown size={16} />
+                  </button>
+                </div>
             </div>
         )}
         {isActive && (
@@ -138,15 +143,19 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
                 <button className="flex-1 bg-primary hover:bg-blue-600 text-white text-xs font-bold py-1.5 rounded transition-colors" onClick={handleExpand}>
                     Expand
                 </button>
-                <button className="flex-1 bg-surface-border hover:bg-gray-700 text-white text-xs font-bold py-1.5 rounded transition-colors" onClick={handleBranch}>
-                    Branch
-                </button>
-                <button className="flex-1 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 text-xs font-bold py-1.5 rounded transition-colors" onClick={handleMerge}>
-                    Merge
-                </button>
-                <button className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-bold py-1.5 rounded transition-colors" onClick={handleDelete}>
-                    Delete
-                </button>
+                {!data.isReadOnly && (
+                  <>
+                    <button className="flex-1 bg-surface-border hover:bg-gray-700 text-white text-xs font-bold py-1.5 rounded transition-colors" onClick={handleBranch}>
+                        Branch
+                    </button>
+                    <button className="flex-1 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 text-xs font-bold py-1.5 rounded transition-colors" onClick={handleMerge}>
+                        Merge
+                    </button>
+                    <button className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-bold py-1.5 rounded transition-colors" onClick={handleDelete}>
+                        Delete
+                    </button>
+                  </>
+                )}
             </div>
         )}
       </div>

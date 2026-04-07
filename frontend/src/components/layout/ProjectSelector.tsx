@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { FolderOpen, Plus, ChevronDown } from 'lucide-react';
 import useStore from '../../store';
+import { spaNavigate } from '../../utils/spaNavigation';
 
 const ProjectSelector = () => {
   const { 
@@ -53,7 +54,10 @@ const ProjectSelector = () => {
             projects.map(project => (
               <button
                 key={project.project_id}
-                onClick={() => setCurrentProject(project.project_id)}
+                onClick={() => {
+                  spaNavigate('/');
+                  void setCurrentProject(project.project_id);
+                }}
                 className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors ${
                   project.project_id === currentProjectId 
                     ? 'bg-primary/20 text-white' 

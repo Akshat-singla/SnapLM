@@ -67,6 +67,7 @@ const MergeModal = () => {
       const newNodeData = {
           title: `Merge: ${node.data.title} & ${targetNode.data.title}`,
           parentId: node.id, // Primary Parent (Source)
+          mergeParentId: targetNode.id, // Secondary Parent (Target)
           projectId: currentProjectId, // Associate with current project
           nodeType: 'standard' as const,
       };
@@ -84,8 +85,8 @@ const MergeModal = () => {
           nodeType: response.node_type,
           status: response.status,
           parentId: response.parent_id,
-          mergeParentId: targetNode.id, // Ensure this is passed
-          messageCount: 0,
+          mergeParentId: response.merge_parent_id || targetNode.id,
+messageCount: 0,
           tokenCount: 0,
           inheritedContext: `Merged context from ${node.data.title} and ${targetNode.data.title}`,
           lastActivity: response.created_at
@@ -95,25 +96,8 @@ const MergeModal = () => {
       // Add Node
       useStore.getState().addNode(newNode);
 
-      // 4. Create Dual Edges
-      // Edge 1: Source -> New Node
-      useStore.getState().onConnect({
-          source: node.id,
-          target: newNode.id,
-          sourceHandle: null,
-          targetHandle: null
-      });
-
-      // Edge 2: Target -> New Node
-      useStore.getState().onConnect({
-          source: targetNode.id,
-          target: newNode.id,
-          sourceHandle: null,
-          targetHandle: null
-      });
-
       addToast({ type: 'success', message: 'Merged successfully into new node' });
-      handleClose();
+handleClose();
     } catch (error) {
       addToast({ type: 'error', message: 'Failed to merge nodes' });
       console.error(error);

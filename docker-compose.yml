@@ -1,0 +1,21 @@
+# Lightweight Postgres only (~80MB image). Start: docker compose up -d
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: snaplm-postgres
+    environment:
+      POSTGRES_USER: pguser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: snaplm
+    ports:
+      - "5432:5432"
+    volumes:
+      - snaplm_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pguser -d snaplm"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  snaplm_pgdata:

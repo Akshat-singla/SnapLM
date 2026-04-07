@@ -18,16 +18,35 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    user_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    username = Column(String(100), nullable=False, unique=True, index=True)
+    email = Column(String(255), nullable=False, unique=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    projects = relationship("Project", back_populates="owner")
+
+
 class Project(Base):
     __tablename__ = "projects"
 
     project_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    owner_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.user_id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     name = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     metadata_ = Column("metadata", JSON, default={})
 
+    owner = relationship("User", back_populates="projects")
     nodes = relationship("Node", back_populates="project", cascade="all, delete-orphan")
 
 
@@ -113,6 +132,45 @@ class NodeSummary(Base):
 
     node = relationship("Node", back_populates="summaries")
     event = relationship("NodeEvent")
+
+
+class WorkspaceShare(Base):
+    __tablename__ = "workspace_shares"
+
+    share_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.project_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    share_token = Column(String(128), nullable=False, unique=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    project = relationship("Project")
+
+
+class SharedProject(Base):
+    """Snapshot of a single branch (root node + descendants) shared with another user."""
+
+    __tablename__ = "shared_projects"
+
+    share_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.project_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    root_node_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("nodes.node_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    graph_data = Column(JSON, nullable=False)
+    shared_with_user = Column(String(255), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    project = relationship("Project")
 
 
 class KnowledgeGraph(Base):

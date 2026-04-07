@@ -4,11 +4,26 @@ import type { Node } from 'reactflow';
 
 
 
+export const USER_ID_STORAGE_KEY = 'snaplm_user_id';
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+api.interceptors.request.use((config) => {
+  const id = localStorage.getItem(USER_ID_STORAGE_KEY);
+  if (id) {
+    const h = config.headers;
+    if (typeof (h as { set?: (k: string, v: string) => void }).set === 'function') {
+      (h as { set: (k: string, v: string) => void }).set('X-User-Id', id);
+    } else {
+      (config.headers as Record<string, string>)['X-User-Id'] = id;
+    }
+  }
+  return config;
 });
 
 // Mock implementations
@@ -21,7 +36,31 @@ interface TreeNodeResponse {
     children: TreeNodeResponse[];
     position: { x: number; y: number };
     message_count?: number;
-    merge_parent_id?: string | null;  // Secondary parent from merge operations
+    merge_parent_id?: string | null;
+    inherited_context?: Record<string, any> | null;
+}
+
+interface SharedWorkspaceNodeResponse {
+  node_id: string;
+  title: string;
+  status: NodeStatus;
+  node_type: NodeType;
+  parent_id: string | null;
+  merge_parent_id?: string | null;
+  inherited_context?: Record<string, any> | null;
+  position: { x: number; y: number };
+}
+
+interface SharedWorkspaceResponse {
+  project: Project;
+  nodes: SharedWorkspaceNodeResponse[];
+  messages_by_node: Record<string, Array<{
+    message_id: string;
+    role: Message['role'];
+    content: string;
+    timestamp: string;
+    metadata?: Record<string, any>;
+  }>>;
 }
 
 export const nodesApi = {
@@ -32,6 +71,13 @@ export const nodesApi = {
     const flatten = (nodes: TreeNodeResponse[], parentId: string | null = null): Node<NodeData>[] => {
       let flatList: Node<NodeData>[] = [];
       for (const n of nodes) {
+        const ctx = n.inherited_context;
+        const inheritedContext = ctx
+          ? [
+              ...(ctx.facts?.slice(0, 2).map((f: any) => f.fact || String(f)) ?? []),
+              ...(ctx.decisions?.slice(0, 1).map((d: any) => `[Decision] ${d.decision || String(d)}`) ?? []),
+            ].join(' | ')
+          : '';
         flatList.push({
           id: n.node_id,
           position: n.position || { x: 0, y: 0 },
@@ -41,11 +87,11 @@ export const nodesApi = {
             status: n.status,
             nodeType: n.node_type,
             parentId: parentId,
-            mergeParentId: n.merge_parent_id || null,  // Map merge parent for dual edges
+            mergeParentId: n.merge_parent_id || null,
             messageCount: n.message_count || 0,
-            tokenCount: 0, // Not currently returned by tree API
-            lastActivity: new Date().toISOString(), // Placeholder
-            inheritedContext: "", // Placeholder
+            tokenCount: 0,
+            lastActivity: new Date().toISOString(),
+            inheritedContext,
           }
         });
         
@@ -74,7 +120,12 @@ export const nodesApi = {
     if (data.projectId) {
       payload.project_id = data.projectId;
     }
-    
+
+    // Include merge_parent_id for merged-node link persistence
+    if (data.mergeParentId && data.mergeParentId.trim() !== '') {
+      payload.merge_parent_id = data.mergeParentId;
+    }
+
     // Include initial_message for context transfer (triggers LLM response on backend)
     if (data.initialMessage && data.initialMessage.trim() !== '') {
       payload.initial_message = data.initialMessage;
@@ -138,6 +189,11 @@ export const nodesApi = {
     const response = await api.get(`/nodes/${nodeId}/graph`);
     return response.data;
   },
+
+  updateNodePosition: async (nodeId: string, x: number, y: number) => {
+    const response = await api.patch(`/nodes/${nodeId}/position`, { x, y });
+    return response.data;
+  },
 };
 
 // Project Types
@@ -187,6 +243,13 @@ export const projectsApi = {
     const flatten = (nodes: TreeNodeResponse[], parentId: string | null = null): Node<NodeData>[] => {
       let flatList: Node<NodeData>[] = [];
       for (const n of nodes) {
+        const ctx = n.inherited_context;
+        const inheritedContext = ctx
+          ? [
+              ...(ctx.facts?.slice(0, 2).map((f: any) => f.fact || String(f)) ?? []),
+              ...(ctx.decisions?.slice(0, 1).map((d: any) => `[Decision] ${d.decision || String(d)}`) ?? []),
+            ].join(' | ')
+          : '';
         flatList.push({
           id: n.node_id,
           position: n.position || { x: 0, y: 0 },
@@ -196,11 +259,11 @@ export const projectsApi = {
             status: n.status,
             nodeType: n.node_type,
             parentId: parentId,
-            mergeParentId: n.merge_parent_id || null,  // Map merge parent for dual edges
+            mergeParentId: n.merge_parent_id || null,
             messageCount: n.message_count || 0,
             tokenCount: 0,
             lastActivity: new Date().toISOString(),
-            inheritedContext: "",
+            inheritedContext,
           }
         });
         
@@ -212,6 +275,93 @@ export const projectsApi = {
     };
 
     return flatten(treeRoots);
+  },
+
+  createProjectShare: async (projectId: string): Promise<{ share_token: string; share_url: string }> => {
+    const response = await api.post(`/projects/${projectId}/share`);
+    return response.data;
+  },
+
+  getSharedWorkspace: async (shareToken: string): Promise<SharedWorkspaceResponse> => {
+    const response = await api.get<SharedWorkspaceResponse>(`/shared/${shareToken}`);
+    return response.data;
+  },
+};
+
+export interface UserProfile {
+  user_id: string;
+  username: string;
+  email: string;
+  created_at: string;
+  projects: Project[];
+}
+
+export interface BranchShareNodePayload {
+  node_id: string;
+  title: string;
+  status: NodeStatus;
+  node_type: NodeType;
+  parent_id: string | null;
+  merge_parent_id?: string | null;
+  inherited_context?: Record<string, unknown> | null;
+  position: { x: number; y: number };
+}
+
+export interface BranchImportResponse {
+  nodes: BranchShareNodePayload[];
+  edges: Array<{ id: string; source: string; target: string; type: string }>;
+  messages: Record<
+    string,
+    Array<{
+      message_id: string;
+      role: Message['role'];
+      content: string;
+      timestamp: string;
+      metadata?: Record<string, unknown>;
+    }>
+  >;
+  meta?: { project_id?: string; project_name?: string; root_node_id?: string };
+}
+
+export const userApi = {
+  register: async (username: string, email: string): Promise<UserProfile> => {
+    const response = await api.post<UserProfile>('/user/register', { username, email });
+    return response.data;
+  },
+
+  getProfile: async (): Promise<UserProfile> => {
+    const response = await api.get<UserProfile>('/user/profile');
+    return response.data;
+  },
+
+  updateProfile: async (data: { username?: string; email?: string }): Promise<UserProfile> => {
+    const response = await api.put<UserProfile>('/user/profile/update', data);
+    return response.data;
+  },
+};
+
+export const canvasApi = {
+  shareBranch: async (payload: {
+    project_id: string;
+    root_node_id: string;
+    shared_with_user: string;
+  }): Promise<{
+    share_id: string;
+    project_id: string;
+    root_node_id: string;
+    shared_with_user: string;
+  }> => {
+    const response = await api.post('/canvas/share-branch', {
+      project_id: payload.project_id,
+      root_node_id: payload.root_node_id,
+      shared_with_user: payload.shared_with_user,
+    });
+    return response.data;
+  },
+
+  importBranch: async (shareId: string): Promise<BranchImportResponse> => {
+    const response = await api.get<BranchImportResponse>(`/canvas/import-branch/${shareId}`);
+    return response.data;
   },
 };
 

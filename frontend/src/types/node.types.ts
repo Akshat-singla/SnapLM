@@ -6,11 +6,12 @@ export interface NodeData {
   nodeType: NodeType;
   status: NodeStatus;
   parentId: string | null;
-  mergeParentId?: string | null; // Secondary parent for merged nodes
+  mergeParentId?: string | null;
   messageCount: number;
   tokenCount: number;
-  inheritedContext?: string; // Compressed parent summary
+  inheritedContext?: string;
   lastActivity: string;
+  isReadOnly?: boolean; // true when viewing a shared workspace
 }
 
 export interface Message {
@@ -24,6 +25,7 @@ export interface Message {
 export interface CreateNodeRequest {
   title: string;
   parentId: string | null;
+  mergeParentId?: string | null;
   projectId?: string | null;
   nodeType: NodeType;
   initialMessage?: string; // Focus/context for the new branch - triggers immediate LLM response

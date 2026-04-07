@@ -1,13 +1,14 @@
 import { create } from 'zustand';
 import { type Node, type Edge, type Connection, addEdge, applyNodeChanges, applyEdgeChanges, type NodeChange, type EdgeChange } from 'reactflow';
 import type { NodeData, Message } from '../types/node.types';
-import { nodesApi, projectsApi, type Project } from '../services/api/client';
+import { canvasApi, nodesApi, projectsApi, type Project } from '../services/api/client';
 
 interface AppState {
   // Canvas State
   nodes: Node<NodeData>[];
   edges: Edge[];
   isInitialized: boolean;
+  isReadOnly: boolean; // true when viewing a shared workspace
   
   // Project State
   projects: Project[];
@@ -29,6 +30,9 @@ interface AppState {
   setCurrentProject: (id: string | null) => Promise<void>;
   createProject: (name: string, description?: string) => Promise<Project | null>;
   setCreateProjectModalOpen: (open: boolean) => void;
+  createShareLink: () => Promise<string | null>;
+  loadSharedWorkspace: (shareToken: string) => Promise<void>;
+  loadSharedBranch: (shareId: string) => Promise<void>;
 
   // Node Actions
   fetchNodes: () => Promise<void>;
@@ -52,6 +56,39 @@ interface AppState {
   addToast: (toast: { type: 'success' | 'error' | 'info'; message: string }) => void;
   removeToast: (id: string) => void;
 }
+
+// Converts inherited_context JSON into a readable summary string for display
+const formatInheritedContext = (ctx: Record<string, unknown> | null | undefined): string => {
+  if (!ctx) return '';
+  const parts: string[] = [];
+  const facts = ctx['facts'];
+  if (Array.isArray(facts) && facts.length) {
+    parts.push(
+      facts
+        .slice(0, 2)
+        .map((f: unknown) =>
+          typeof f === 'object' && f !== null && 'fact' in f
+            ? String((f as { fact: unknown }).fact)
+            : String(f)
+        )
+        .join('; ')
+    );
+  }
+  const decisions = ctx['decisions'];
+  if (Array.isArray(decisions) && decisions.length) {
+    parts.push(
+      decisions
+        .slice(0, 1)
+        .map((d: unknown) =>
+          typeof d === 'object' && d !== null && 'decision' in d
+            ? `[Decision] ${String((d as { decision: unknown }).decision)}`
+            : `[Decision] ${String(d)}`
+        )
+        .join('; ')
+    );
+  }
+  return parts.join(' | ');
+};
 
 // Helper to build edges from nodes based on parent-child relationships
 const buildEdgesFromNodes = (nodes: Node<NodeData>[]): Edge[] => {
@@ -87,6 +124,7 @@ const useStore = create<AppState>((set, get) => ({
   nodes: [],
   edges: [],
   isInitialized: false,
+  isReadOnly: false,
   
   // Project State
   projects: [],
@@ -117,7 +155,7 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   setCurrentProject: async (id: string | null) => {
-    set({ currentProjectId: id, nodes: [], edges: [], isInitialized: false });
+    set({ currentProjectId: id, nodes: [], edges: [], isInitialized: false, isReadOnly: false });
     
     if (id) {
       try {
@@ -152,8 +190,177 @@ const useStore = create<AppState>((set, get) => ({
     set({ createProjectModalOpen: open });
   },
 
+  createShareLink: async () => {
+    const { currentProjectId } = get();
+    if (!currentProjectId) {
+      get().addToast({ type: 'error', message: 'Select a project before sharing' });
+      return null;
+    }
+
+    try {
+      const response = await projectsApi.createProjectShare(currentProjectId);
+      const shareLink = `${window.location.origin}/shared/${response.share_token}`;
+      try {
+        await navigator.clipboard.writeText(shareLink);
+        get().addToast({ type: 'success', message: 'Share link copied to clipboard' });
+      } catch {
+        get().addToast({ type: 'info', message: `Share link: ${shareLink}` });
+      }
+      return shareLink;
+    } catch (error) {
+      console.error('Failed to create share link:', error);
+      get().addToast({ type: 'error', message: 'Failed to create share link' });
+      return null;
+    }
+},
+
+  loadSharedWorkspace: async (shareToken: string) => {
+    try {
+      set({ loading: { ...get().loading, sharedWorkspace: true } });
+      const response = await projectsApi.getSharedWorkspace(shareToken);
+
+      const nodes: Node<NodeData>[] = response.nodes.map((n) => ({
+        id: n.node_id,
+        position: n.position || { x: 0, y: 0 },
+        type: 'custom',
+        data: {
+          title: n.title,
+          status: n.status,
+          nodeType: n.node_type,
+          parentId: n.parent_id,
+          mergeParentId: n.merge_parent_id || null,
+          messageCount: response.messages_by_node[n.node_id]?.length || 0,
+          tokenCount: 0,
+          lastActivity: new Date().toISOString(),
+          inheritedContext: formatInheritedContext(n.inherited_context),
+          isReadOnly: true,
+        }
+      }));
+
+      const mappedMessages = Object.fromEntries(
+        Object.entries(response.messages_by_node).map(([nodeId, msgs]) => [
+          nodeId,
+          msgs.map((m) => ({
+            id: m.message_id,
+            role: m.role,
+            content: m.content,
+            timestamp: m.timestamp,
+            metadata: m.metadata || {},
+          }))
+        ])
+      );
+
+      const existingProjects = get().projects;
+      const hasProject = existingProjects.some((p) => p.project_id === response.project.project_id);
+      const projects = hasProject ? existingProjects : [response.project, ...existingProjects];
+
+      const edges = buildEdgesFromNodes(nodes);
+      set({
+        projects,
+        currentProjectId: response.project.project_id,
+        nodes,
+        edges,
+        messages: mappedMessages,
+        isInitialized: true,
+        isReadOnly: true,
+        loading: { ...get().loading, sharedWorkspace: false },
+      });
+
+      get().addToast({ type: 'success', message: 'Shared workspace loaded' });
+    } catch (error) {
+      console.error('Failed to load shared workspace:', error);
+      get().addToast({ type: 'error', message: 'Failed to load shared workspace' });
+      set({ loading: { ...get().loading, sharedWorkspace: false } });
+    }
+  },
+
+  loadSharedBranch: async (shareId: string) => {
+    try {
+      set({ loading: { ...get().loading, sharedBranch: true } });
+      const data = await canvasApi.importBranch(shareId);
+
+      const nodes: Node<NodeData>[] = data.nodes.map((n) => ({
+        id: n.node_id,
+        position: n.position || { x: 0, y: 0 },
+        type: 'custom',
+        data: {
+          title: n.title,
+          status: n.status,
+          nodeType: n.node_type,
+          parentId: n.parent_id,
+          mergeParentId: n.merge_parent_id || null,
+          messageCount: data.messages[n.node_id]?.length || 0,
+          tokenCount: 0,
+          lastActivity: new Date().toISOString(),
+          inheritedContext: formatInheritedContext(n.inherited_context as Record<string, unknown> | null),
+          isReadOnly: true,
+        },
+      }));
+
+      const edges: Edge[] =
+        data.edges && data.edges.length > 0
+          ? data.edges.map((e) => ({
+              id: e.id,
+              source: e.source,
+              target: e.target,
+              type: 'context',
+              animated: false,
+              style:
+                e.type === 'merge'
+                  ? { strokeWidth: 1.5, strokeDasharray: '5,5' }
+                  : { strokeWidth: 1.5 },
+            }))
+          : buildEdgesFromNodes(nodes);
+
+      const mappedMessages = Object.fromEntries(
+        Object.entries(data.messages).map(([nodeId, msgs]) => [
+          nodeId,
+          msgs.map((m) => ({
+            id: m.message_id,
+            role: m.role as Message['role'],
+            content: m.content,
+            timestamp: m.timestamp,
+            metadata: m.metadata || {},
+          })),
+        ])
+      );
+
+      const meta = data.meta;
+      const projectId = meta?.project_id ?? `branch-${shareId}`;
+      const project: Project = {
+        project_id: projectId,
+        name: meta?.project_name ? `${meta.project_name} (shared branch)` : 'Shared branch',
+        description: null,
+        created_at: new Date().toISOString(),
+        updated_at: null,
+        node_count: data.nodes.length,
+      };
+
+      const existingProjects = get().projects;
+      const hasProject = existingProjects.some((p) => p.project_id === project.project_id);
+      const projects = hasProject ? existingProjects : [project, ...existingProjects];
+
+      set({
+        projects,
+        currentProjectId: project.project_id,
+        nodes,
+        edges,
+        messages: mappedMessages,
+        isInitialized: true,
+        isReadOnly: true,
+        loading: { ...get().loading, sharedBranch: false },
+      });
+
+      get().addToast({ type: 'success', message: 'Shared branch loaded' });
+    } catch (error) {
+      console.error('Failed to load shared branch:', error);
+      get().addToast({ type: 'error', message: 'Failed to load shared branch' });
+      set({ loading: { ...get().loading, sharedBranch: false } });
+    }
+  },
+
   // Node Actions
-  fetchNodes: async () => {
+fetchNodes: async () => {
     try {
       set({ loading: { ...get().loading, nodes: true } });
       const nodes = await nodesApi.getNodes();
@@ -192,18 +399,7 @@ const useStore = create<AppState>((set, get) => ({
   addNode: (node) => {
     set((state) => {
       const newNodes = [...state.nodes, node];
-      // Also add the edge if it has a parent
-      let newEdges = state.edges;
-      if (node.data.parentId) {
-        newEdges = [...state.edges, {
-          id: `e-${node.data.parentId}-${node.id}`,
-          source: node.data.parentId,
-          target: node.id,
-          type: 'context',
-          animated: false,
-          style: { strokeWidth: 1.5 }
-        }];
-      }
+      const newEdges = buildEdgesFromNodes(newNodes);
       return { nodes: newNodes, edges: newEdges };
     });
   },

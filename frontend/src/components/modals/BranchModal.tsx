@@ -74,18 +74,9 @@ const BranchModal = () => {
       };
 
       addNode(newNode);
-      
-      // Edge is added automatically by ReactFlow if we had an 'onAddEdge' but we are using custom logic
-      // We need to add the edge manually in the store
-      useStore.getState().onConnect({
-        source: parentNode.id,
-        target: newNode.id,
-        sourceHandle: null,
-        targetHandle: null
-      });
 
       addToast({ type: 'success', message: 'Branch created successfully' });
-      handleClose();
+handleClose();
     } catch (error) {
       addToast({ type: 'error', message: 'Failed to create branch' });
       console.error(error);

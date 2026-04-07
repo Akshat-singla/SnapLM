@@ -5,9 +5,11 @@ import useStore from '../../store';
 import clsx from 'clsx';
 
 const Sidebar = () => {
-  const { nodes, selectedNodeId, setSelectedNode } = useStore();
+  const { nodes, selectedNodeId, setSelectedNode, projects, currentProjectId } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [isTreeExpanded, setIsTreeExpanded] = useState(true);
+
+  const currentProject = projects.find(p => p.project_id === currentProjectId);
 
   const filteredNodes = nodes.filter(node => 
     node.data.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -24,8 +26,12 @@ const Sidebar = () => {
             style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuAtQeCC8zYrrZQaiERkn75YGM4e_ojYkrKd9Anq_O7N91u-PZREynOZmHYfMQ1FMEffvNDkccDepKL8sNKZIw7eNY3BG5tEwS680tuEkNStvzRpJe5gkJaE3k7zMoLXrVrtd1BAaXLkXSc0yvXmsQd8hXNoOsixDODs2rDJgPT6jFA2h6Fq5fnoNfTHydqOAlnXuNthecIUeRo6WRsRDQoZD5Ak69ES4ucKVFomQ6qkfMfRepIz8N-syDp27HGj9CLMxuQ3QsToGz1G")'}}
           ></div>
           <div className="flex flex-col">
-            <h1 className="text-white text-base font-bold leading-tight">Project Alpha</h1>
-            <p className="text-slate-400 text-xs font-normal">Last edited 5m ago</p>
+            <h1 className="text-white text-base font-bold leading-tight">
+              {currentProject ? currentProject.name : 'No Project'}
+            </h1>
+            <p className="text-slate-400 text-xs font-normal">
+              {currentProject ? `${currentProject.node_count} nodes` : 'Select a project'}
+            </p>
           </div>
         </div>
         

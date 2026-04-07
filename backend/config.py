@@ -12,12 +12,12 @@ class Settings(BaseSettings):
     MODEL_MAIN_REASONER: str = "main-reasoner"
     MODEL_GRAPH_BUILDER: str = "graph-builder"
 
-    # Context window limits (must match Modelfile num_ctx)
-    CTX_MAIN_REASONER: int = 8192
-    CTX_GRAPH_BUILDER: int = 4096
+    # Context window limits (must match Modelfile num_ctx; keep low for small models)
+    CTX_MAIN_REASONER: int = 2048
+    CTX_GRAPH_BUILDER: int = 2048
 
     # How many recent messages the chat agent sees
-    CHAT_RECENT_MESSAGES: int = 10
+    CHAT_RECENT_MESSAGES: int = 6
 
     # The Pydantic V2 way to define settings configurations
     model_config = SettingsConfigDict(

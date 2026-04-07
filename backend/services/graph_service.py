@@ -136,10 +136,10 @@ async def merge_graphs(session: AsyncSession, source_id: uuid.UUID, target_id: u
     await session.commit()
 async def soft_delete_edges(session: AsyncSession, node_id: uuid.UUID):
     """SET deleted_at = NOW() on all edges where source_node = node_id."""
+    from sqlalchemy import func
     await session.execute(
         update(KnowledgeGraph)
         .where(KnowledgeGraph.source_node == node_id)
         .values(deleted_at=func.now())
     )
     await session.commit()
-from sqlalchemy import func

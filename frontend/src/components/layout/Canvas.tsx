@@ -3,11 +3,14 @@ import ReactFlow, {
   Controls, 
   MiniMap, 
   type NodeTypes,
+  type Node,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import useStore from '../../store';
 import CustomNode from '../nodes/CustomNode';
 import ContextEdge from '../edges/ContextEdge';
+import { nodesApi } from '../../services/api/client';
+import type { NodeData } from '../../types/node.types';
 
 const nodeTypes: NodeTypes = {
   custom: CustomNode,
@@ -18,10 +21,26 @@ const edgeTypes = {
 };
 
 const CanvasWrapper = () => {
-  const { nodes, edges, onNodesChange, onEdgesChange, onConnect } = useStore();
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, setSelectedNode } = useStore();
+
+  const handleNodeDragStop = async (_event: React.MouseEvent, node: Node<NodeData>) => {
+    try {
+      await nodesApi.updateNodePosition(node.id, node.position.x, node.position.y);
+    } catch (error) {
+      console.error('Failed to persist node position:', error);
+    }
+  };
+
+  const handleNodeClick = (_event: React.MouseEvent, node: Node<NodeData>) => {
+    setSelectedNode(node.id);
+  };
+
+  const handlePaneClick = () => {
+    setSelectedNode(null);
+  };
 
   return (
-    <div className="flex-1 w-full h-full bg-background-dark relative group/canvas">
+<div className="flex-1 w-full h-full bg-background-dark relative group/canvas">
         <div className="absolute inset-0 bg-grid-pattern bg-[length:40px_40px] opacity-40 pointer-events-none transform scale-150 origin-center"></div>
       
       <ReactFlow
@@ -30,6 +49,9 @@ const CanvasWrapper = () => {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onNodeDragStop={handleNodeDragStop}
+        onNodeClick={handleNodeClick}
+        onPaneClick={handlePaneClick}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
