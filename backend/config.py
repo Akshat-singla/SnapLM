@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
+from dotenv import load_dotenv
+import os
+load_dotenv();
 class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://pguser:mypassword@localhost:5432/snaplm"
     # Ai Model
@@ -16,6 +17,10 @@ class Settings(BaseSettings):
     # Context window limits (must match Modelfile num_ctx)
     CTX_MAIN_REASONER: int = 8192
     CTX_GRAPH_BUILDER: int = 4096
+
+    CF_ACCOUNT_ID: str = os.environ.get("CF_ACCOUNT_ID")
+    CF_API_TOKEN: str = os.environ.get("CF_API_TOKEN")
+    CF_MODEL: str = os.environ.get("CF_MODEL")
 
     # How many recent messages the chat agent sees
     CHAT_RECENT_MESSAGES: int = 10
