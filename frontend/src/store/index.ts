@@ -4,7 +4,6 @@ import type { NodeData, Message } from '../types/node.types';
 import { nodesApi, projectsApi, type Project } from '../services/api/client';
 
 interface AppState {
-  archiveNodeBranch: (nodeId: string) => Promise<void>;
   // Canvas State
   nodes: Node<NodeData>[];
   edges: Edge[];
@@ -29,8 +28,6 @@ interface AppState {
   fetchProjects: () => Promise<void>;
   setCurrentProject: (id: string | null) => Promise<void>;
   createProject: (name: string, description?: string) => Promise<Project | null>;
-  archiveProject: (id: string) => Promise<void>;
-  unarchiveProject: (id: string) => Promise<void>;
   setCreateProjectModalOpen: (open: boolean) => void;
 
   // Node Actions
@@ -148,114 +145,9 @@ const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  archiveProject: async (id: string) => {
-    const { projects, currentProjectId } = get();
-    const previousProjects = projects;
-
-    // Optimistic update for instant UI feedback.
-    const optimisticProjects = projects.map((project) =>
-      project.project_id === id ? { ...project, is_archived: true } : project
-    );
-    set({ projects: optimisticProjects });
-
-    if (currentProjectId === id) {
-      const nextActiveProject = optimisticProjects.find((project) => !project.is_archived);
-      await get().setCurrentProject(nextActiveProject?.project_id ?? null);
-    }
-
-    try {
-      const archivedProject = await projectsApi.archiveProject(id);
-      set({
-        projects: get().projects.map((project) =>
-          project.project_id === id
-            ? { ...project, ...archivedProject, is_archived: true }
-            : project
-        ),
-      });
-    } catch (error) {
-      console.error('Failed to archive project:', error);
-      try {
-        const refreshed = await projectsApi.getProjects();
-        set({ projects: refreshed });
-      } catch {
-        set({ projects: previousProjects });
-      }
-      get().addToast({ type: 'error', message: 'Archive update had a response error; list refreshed from server.' });
-    }
-  },
-
-  unarchiveProject: async (id: string) => {
-    const previousProjects = get().projects;
-
-    // Optimistic update for instant UI feedback.
-    set({
-      projects: previousProjects.map((project) =>
-        project.project_id === id ? { ...project, is_archived: false } : project
-      ),
-    });
-
-    try {
-      const unarchivedProject = await projectsApi.unarchiveProject(id);
-      set({
-        projects: get().projects.map((project) =>
-          project.project_id === id
-            ? { ...project, ...unarchivedProject, is_archived: false }
-            : project
-        ),
-      });
-    } catch (error) {
-      console.error('Failed to unarchive project:', error);
-      try {
-        const refreshed = await projectsApi.getProjects();
-        set({ projects: refreshed });
-      } catch {
-        set({ projects: previousProjects });
-      }
-      get().addToast({ type: 'error', message: 'Restore update had a response error; list refreshed from server.' });
-    }
-  },
-
-  //archive leaf nodes action
-  archiveNodeBranch: async (nodeId: string) => {
-  try {
-    const response = await fetch(`/api/v1/nodes/${nodeId}/archive`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    
-    if (!response.ok) throw new Error('Failed to archive node branch');
-    
-    const data = await response.json();
-    const archivedIds = new Set<string>(data.archived_node_ids ?? []);
-
- set((state) => ({
-  selectedNodeId: nodeId,
-  nodes: state.nodes.map((node) =>
-    archivedIds.has(node.id)
-      ? {
-          ...node,
-          data: {
-            ...node.data,
-            isArchived: true, 
-          },
-        }
-      : node
-  ),
-}));
-
-    get().addToast({ type: 'success', message: 'Branch archived successfully' });
-  } catch (error) {
-    console.error('archiveNodeBranch error:', error);
-    get().addToast({ type: 'error', message: 'Failed to archive branch' });
-    throw error;
-  }
-},
-
   setCreateProjectModalOpen: (open: boolean) => {
     set({ createProjectModalOpen: open });
   },
-
-
 
   // Node Actions
   fetchNodes: async () => {

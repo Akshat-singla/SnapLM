@@ -1,5 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
+from dotenv import load_dotenv
+import os
+load_dotenv()
 
 class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://pguser:mypassword@localhost:5432/snaplm"
@@ -8,10 +10,14 @@ class Settings(BaseSettings):
     ollama_device_b_url: str = "http://localhost:11434"
 
     log_level: str = "INFO"
-    jwt_secret : str = "sample-secret"
+    jwt_secret: str = "sample-secret"
 
     MODEL_MAIN_REASONER: str = "main-reasoner"
     MODEL_GRAPH_BUILDER: str = "graph-builder"
+
+    CF_ACCOUNT_ID: str = os.environ.get("CF_ACCOUNT_ID")
+    CF_API_TOKEN: str = os.environ.get("CF_API_TOKEN")
+    CF_MODEL: str = os.environ.get("CF_MODEL")
 
     # Context window limits (must match Modelfile num_ctx)
     CTX_MAIN_REASONER: int = 8192

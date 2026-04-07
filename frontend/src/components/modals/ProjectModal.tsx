@@ -7,7 +7,6 @@ const ProjectModal = () => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (!createProjectModalOpen) return null;
 
@@ -15,13 +14,11 @@ const ProjectModal = () => {
     setCreateProjectModalOpen(false);
     setName('');
     setDescription('');
-    setErrorMessage(null);
   };
 
   const handleCreate = async () => {
     if (!name.trim()) return;
-
-    setErrorMessage(null);
+    
     setIsSubmitting(true);
     try {
       const project = await createProject(name.trim(), description.trim() || undefined);
@@ -29,11 +26,7 @@ const ProjectModal = () => {
         // Switch to the new project
         await setCurrentProject(project.project_id);
         handleClose();
-      } else {
-        setErrorMessage('Could not create project. Check that backend is running and reachable at http://localhost:8000.');
       }
-    } catch {
-      setErrorMessage('Could not create project due to a network or server error.');
     } finally {
       setIsSubmitting(false);
     }
@@ -75,12 +68,6 @@ const ProjectModal = () => {
               className="w-full bg-transparent border border-gray-200 dark:border-[#282e39] rounded-lg px-4 py-2 text-[#111318] dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none"
             />
           </div>
-
-          {errorMessage ? (
-            <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-              {errorMessage}
-            </div>
-          ) : null}
 
           <div className="flex justify-end gap-3">
             <button
