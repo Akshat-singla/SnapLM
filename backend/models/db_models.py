@@ -42,6 +42,7 @@ class Project(Base):
     )
     name = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
+    is_archived = Column(Boolean, nullable=False, default=False, server_default="false")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     metadata_ = Column("metadata", JSON, default={})

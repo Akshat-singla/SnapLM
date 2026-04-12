@@ -11,6 +11,7 @@ class CreateProjectRequest(BaseModel):
 class UpdateProjectRequest(BaseModel):
     name: Optional[constr(min_length=1, max_length=200)] = None
     description: Optional[str] = None
+    is_archived: Optional[bool] = None
 
 class CreateNodeRequest(BaseModel):
     project_id: Optional[UUID] = None
@@ -43,6 +44,7 @@ class ProjectResponse(BaseModel):
     project_id: UUID
     name: str
     description: Optional[str]
+    is_archived: bool = False
     created_at: datetime
     updated_at: Optional[datetime]
     node_count: int = 0
