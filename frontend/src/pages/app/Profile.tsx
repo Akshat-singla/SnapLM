@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { startRegistration } from '@simplewebauthn/browser';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Loader2, CreditCard, LogOut, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, CreditCard, LogOut, Trash2, BarChart3, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -116,10 +116,10 @@ const ProfilePage = () => {
 
   const loadPasskeys = async () => {
     try {
-        const list = await authApi.getPasskeyCredentials();
-        setPasskeysList(list);
+      const list = await authApi.getPasskeyCredentials();
+      setPasskeysList(list);
     } catch {
-        addToast({ type: 'error', message: 'Failed to fully load passkeys' });
+      addToast({ type: 'error', message: 'Failed to fully load passkeys' });
     }
   };
 
@@ -130,27 +130,27 @@ const ProfilePage = () => {
 
   const handleRegisterPasskey = async () => {
     try {
-        const generateResp = await authApi.generatePasskeyRegistration();
-        const attResp = await startRegistration(generateResp);
-        await authApi.verifyPasskeyRegistration(attResp);
-        addToast({ type: 'success', message: 'Passkey registered successfully!' });
-        await loadPasskeys();
+      const generateResp = await authApi.generatePasskeyRegistration();
+      const attResp = await startRegistration(generateResp);
+      await authApi.verifyPasskeyRegistration(attResp);
+      addToast({ type: 'success', message: 'Passkey registered successfully!' });
+      await loadPasskeys();
     } catch (err: any) {
-        if (err.name === 'NotAllowedError') {
-            addToast({ type: 'info', message: 'Passkey registration cancelled' });
-        } else {
-            addToast({ type: 'error', message: 'Failed to register passkey' });
-        }
+      if (err.name === 'NotAllowedError') {
+        addToast({ type: 'info', message: 'Passkey registration cancelled' });
+      } else {
+        addToast({ type: 'error', message: 'Failed to register passkey' });
+      }
     }
   };
 
   const handleDeletePasskey = async (id: string) => {
     try {
-        await authApi.deletePasskeyCredential(id);
-        addToast({ type: 'success', message: 'Passkey deleted' });
-        await loadPasskeys();
+      await authApi.deletePasskeyCredential(id);
+      addToast({ type: 'success', message: 'Passkey deleted' });
+      await loadPasskeys();
     } catch {
-        addToast({ type: 'error', message: 'Failed to delete passkey' });
+      addToast({ type: 'error', message: 'Failed to delete passkey' });
     }
   };
 
@@ -196,12 +196,12 @@ const ProfilePage = () => {
 
           {/* Profile Overview Card */}
           <motion.div variants={fadeUp} initial="hidden" animate="show">
-            <Paper 
+            <Paper
               elevation={0}
-              sx={{ 
-                p: { xs: 4, md: 5 }, 
-                borderRadius: 4, 
-                bgcolor: 'var(--color-surface-elevated)', 
+              sx={{
+                p: { xs: 4, md: 5 },
+                borderRadius: 4,
+                bgcolor: 'var(--color-surface-elevated)',
                 border: '1px solid rgba(255,255,255,0.08)',
                 textAlign: 'center',
                 color: 'white',
@@ -217,68 +217,46 @@ const ProfilePage = () => {
                 {user?.email || 'Loading...'}
               </p>
 
-              <Chip 
-                label="Pro Plan" 
-                size="small" 
-                sx={{ 
-                  mt: 2, 
-                  bgcolor: 'rgba(16, 185, 129, 0.15)', 
-                  color: 'var(--color-node-ai)', 
-                  fontWeight: 'bold',
-                  fontFamily: 'Inter'
-                }} 
-              />
             </Paper>
           </motion.div>
 
-          {/* Subscription Card */}
+          {/* Quick Stats Card */}
           <motion.div variants={fadeUp} initial="hidden" animate="show">
-            <Paper 
+            <Paper
               elevation={0}
-              sx={{ 
-                p: { xs: 4, md: 5 }, 
-                borderRadius: 4, 
-                bgcolor: 'var(--color-surface-elevated)', 
+              sx={{
+                p: { xs: 4, md: 5 },
+                borderRadius: 4,
+                bgcolor: 'var(--color-surface-elevated)',
                 border: '1px solid rgba(255,255,255,0.08)',
                 color: 'white',
                 backdropFilter: 'blur(10px)',
               }}
             >
               <div className="flex items-center gap-2 mb-6">
-                 <CreditCard size={22} className="text-primary" />
-                 <h2 className="font-display text-xl font-bold">Subscription</h2>
+                <BarChart3 size={22} className="text-primary" />
+                <h2 className="font-display text-xl font-bold">Account Stats</h2>
               </div>
 
-              <div className="space-y-4 text-sm text-slate-400 mb-8 font-body">
+              <div className="space-y-4 text-sm text-slate-400 font-body">
                 <div className="flex justify-between items-center">
-                  <span>Plan</span>
-                  <span className="text-white font-medium">Pro</span>
+                  <span>Joined</span>
+                  <span className="text-white font-medium">
+                    {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span>Billing Cycle</span>
-                  <span className="text-white font-medium">Monthly</span>
+                  <span>Total Projects</span>
+                  <span className="text-white font-medium">{projects?.length || 0}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span>Next Invoice</span>
-                  <span className="text-white font-medium">Nov 23, 2026</span>
+                  <span>Security Status</span>
+                  <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
+                    <ShieldCheck size={14} />
+                    <span>Protected</span>
+                  </div>
                 </div>
               </div>
-
-              <Button 
-                fullWidth 
-                variant="outlined" 
-                sx={{ 
-                  color: 'white', 
-                  borderColor: 'rgba(255,255,255,0.2)', 
-                  '&:hover': { borderColor: 'rgba(255,255,255,0.4)', bgcolor: 'rgba(255,255,255,0.05)' },
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  fontFamily: 'Inter',
-                  py: 1
-                }}
-              >
-                Manage Subscription
-              </Button>
             </Paper>
           </motion.div>
         </div>
@@ -288,12 +266,12 @@ const ProfilePage = () => {
 
           {/* Form Card */}
           <motion.div variants={fadeUp} initial="hidden" animate="show">
-            <Paper 
+            <Paper
               elevation={0}
-              sx={{ 
-                p: { xs: 4, md: 6 }, 
-                borderRadius: 4, 
-                bgcolor: 'var(--color-surface-elevated)', 
+              sx={{
+                p: { xs: 4, md: 6 },
+                borderRadius: 4,
+                bgcolor: 'var(--color-surface-elevated)',
                 border: '1px solid rgba(255,255,255,0.08)',
                 color: 'white',
                 backdropFilter: 'blur(10px)',
@@ -313,9 +291,9 @@ const ProfilePage = () => {
                   value={editUsername}
                   onChange={(e) => setEditUsername(e.target.value)}
                   variant="outlined"
-                  sx={{ 
+                  sx={{
                     fontFamily: 'Inter',
-                    '& .MuiOutlinedInput-root': { color: 'white', fontFamily: 'Inter', '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' }, '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.2)' }, '&.Mui-focused fieldset': { borderColor: 'var(--color-primary)' } }, 
+                    '& .MuiOutlinedInput-root': { color: 'white', fontFamily: 'Inter', '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' }, '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.2)' }, '&.Mui-focused fieldset': { borderColor: 'var(--color-primary)' } },
                     '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.5)', fontFamily: 'Inter' },
                     '& .MuiInputLabel-root.Mui-focused': { color: 'var(--color-primary)' }
                   }}
@@ -328,24 +306,24 @@ const ProfilePage = () => {
                   value={editEmail}
                   onChange={(e) => setEditEmail(e.target.value)}
                   variant="outlined"
-                  sx={{ 
+                  sx={{
                     fontFamily: 'Inter',
-                    '& .MuiOutlinedInput-root': { color: 'white', fontFamily: 'Inter', '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' }, '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.2)' }, '&.Mui-focused fieldset': { borderColor: 'var(--color-primary)' } }, 
+                    '& .MuiOutlinedInput-root': { color: 'white', fontFamily: 'Inter', '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' }, '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.2)' }, '&.Mui-focused fieldset': { borderColor: 'var(--color-primary)' } },
                     '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.5)', fontFamily: 'Inter' },
                     '& .MuiInputLabel-root.Mui-focused': { color: 'var(--color-primary)' }
                   }}
                 />
 
                 <Box display="flex" justifyContent="flex-start" pt={2}>
-                  <Button 
-                    type="submit" 
-                    disabled={saving} 
+                  <Button
+                    type="submit"
+                    disabled={saving}
                     variant="contained"
-                    sx={{ 
-                      bgcolor: 'var(--color-primary)', 
-                      '&:hover': { bgcolor: 'var(--color-primary-hover)' }, 
-                      textTransform: 'none', 
-                      px: 5, 
+                    sx={{
+                      bgcolor: 'var(--color-primary)',
+                      '&:hover': { bgcolor: 'var(--color-primary-hover)' },
+                      textTransform: 'none',
+                      px: 5,
                       py: 1.5,
                       fontWeight: 'bold',
                       fontFamily: 'Inter',
@@ -362,12 +340,12 @@ const ProfilePage = () => {
 
           {/* Security Card */}
           <motion.div variants={fadeUp} initial="hidden" animate="show">
-            <Paper 
+            <Paper
               elevation={0}
-              sx={{ 
-                p: { xs: 4, md: 6 }, 
-                borderRadius: 4, 
-                bgcolor: 'var(--color-surface-elevated)', 
+              sx={{
+                p: { xs: 4, md: 6 },
+                borderRadius: 4,
+                bgcolor: 'var(--color-surface-elevated)',
                 border: '1px solid rgba(255,255,255,0.08)',
                 color: 'white',
                 backdropFilter: 'blur(10px)',
@@ -389,18 +367,18 @@ const ProfilePage = () => {
                   </div>
                   {is2faEnabled ? (
                     <div className="flex items-center gap-2">
-                       <Chip label="Enabled" color="success" size="small" />
-                       <Button 
-                         variant="text" 
-                         onClick={handleDisable2FA}
-                         sx={{ color: 'rgba(255,255,255,0.6)', textTransform: 'none', fontWeight: 'bold', fontSize: '0.8rem', '&:hover': { color: '#ef4444' } }}
-                       >
-                         Disable
-                       </Button>
+                      <Chip label="Enabled" color="success" size="small" />
+                      <Button
+                        variant="text"
+                        onClick={handleDisable2FA}
+                        sx={{ color: 'rgba(255,255,255,0.6)', textTransform: 'none', fontWeight: 'bold', fontSize: '0.8rem', '&:hover': { color: '#ef4444' } }}
+                      >
+                        Disable
+                      </Button>
                     </div>
                   ) : (
-                    <Button 
-                      variant="contained" 
+                    <Button
+                      variant="contained"
                       onClick={handleSetup2FA}
                       sx={{ bgcolor: 'var(--color-primary)', textTransform: 'none', fontWeight: 'bold' }}
                     >
@@ -415,8 +393,8 @@ const ProfilePage = () => {
                     <h3 className="font-display font-bold text-lg text-white">Passkeys</h3>
                     <p className="text-sm text-text-secondary">Sign in seamlessly with your device biometric or hardware key.</p>
                   </div>
-                  <Button 
-                    variant="outlined" 
+                  <Button
+                    variant="outlined"
                     onClick={handleManagePasskeys}
                     sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.2)', textTransform: 'none', fontWeight: 'bold' }}
                   >
@@ -429,12 +407,12 @@ const ProfilePage = () => {
 
           {/* Projects Card */}
           <motion.div variants={fadeUp} initial="hidden" animate="show">
-            <Paper 
+            <Paper
               elevation={0}
-              sx={{ 
-                p: { xs: 4, md: 6 }, 
-                borderRadius: 4, 
-                bgcolor: 'var(--color-surface-elevated)', 
+              sx={{
+                p: { xs: 4, md: 6 },
+                borderRadius: 4,
+                bgcolor: 'var(--color-surface-elevated)',
                 border: '1px solid rgba(255,255,255,0.08)',
                 color: 'white',
                 backdropFilter: 'blur(10px)',
@@ -474,12 +452,12 @@ const ProfilePage = () => {
                       </p>
                     </div>
 
-                    <Button 
+                    <Button
                       onClick={() => openProject(p.id || p.project_id)}
                       variant="contained"
-                      sx={{ 
-                        bgcolor: 'rgba(255,255,255,0.08)', 
-                        color: 'white', 
+                      sx={{
+                        bgcolor: 'rgba(255,255,255,0.08)',
+                        color: 'white',
                         boxShadow: 'none',
                         '&:hover': { bgcolor: 'rgba(255,255,255,0.15)', boxShadow: 'none' },
                         textTransform: 'none',
@@ -494,7 +472,7 @@ const ProfilePage = () => {
                     </Button>
                   </Box>
                 )) : (
-                   <p className="text-slate-400">No projects found. Create one in the canvas area!</p>
+                  <p className="text-slate-400">No projects found. Create one in the canvas area!</p>
                 )}
               </div>
             </Paper>
@@ -502,12 +480,12 @@ const ProfilePage = () => {
 
           {/* Danger Zone Card */}
           <motion.div variants={fadeUp} initial="hidden" animate="show">
-            <Paper 
+            <Paper
               elevation={0}
-              sx={{ 
-                p: { xs: 4, md: 6 }, 
-                borderRadius: 4, 
-                bgcolor: 'var(--color-surface-elevated)', 
+              sx={{
+                p: { xs: 4, md: 6 },
+                borderRadius: 4,
+                bgcolor: 'var(--color-surface-elevated)',
                 border: '1px solid rgba(239, 68, 68, 0.2)',
                 color: 'white',
                 backdropFilter: 'blur(10px)',
@@ -521,8 +499,8 @@ const ProfilePage = () => {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button 
-                  variant="outlined" 
+                <Button
+                  variant="outlined"
                   color="inherit"
                   onClick={handleLogout}
                   startIcon={<LogOut size={18} />}
@@ -530,8 +508,8 @@ const ProfilePage = () => {
                 >
                   Logout
                 </Button>
-                <Button 
-                  variant="contained" 
+                <Button
+                  variant="contained"
                   color="error"
                   onClick={handleClearData}
                   startIcon={<Trash2 size={18} />}
@@ -547,8 +525,8 @@ const ProfilePage = () => {
       </div>
 
       {/* 2FA Setup Modal */}
-      <Dialog 
-        open={setupModalOpen} 
+      <Dialog
+        open={setupModalOpen}
         onClose={() => setSetupModalOpen(false)}
         PaperProps={{
           style: { backgroundColor: 'var(--color-surface-elevated)', color: 'white', minWidth: '400px' }
@@ -560,14 +538,14 @@ const ProfilePage = () => {
             Scan the QR code below using Google Authenticator, Authy, or any other TOTP app.
           </p>
           <div className="flex justify-center bg-white p-4 rounded-xl w-max mx-auto mb-4">
-            <img 
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(setupUri)}`} 
-              alt="2FA QR Code" 
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(setupUri)}`}
+              alt="2FA QR Code"
               className="w-[150px] h-[150px]"
             />
           </div>
           <p className="text-xs text-center text-slate-400 mb-4 font-mono break-all">{setupSecret}</p>
-          
+
           <TextField
             fullWidth
             label="Enter 6-digit code"
@@ -576,11 +554,11 @@ const ProfilePage = () => {
             variant="outlined"
             size="small"
             autoComplete="off"
-            sx={{ 
-                fontFamily: 'Inter',
-                '& .MuiOutlinedInput-root': { color: 'white', fontFamily: 'Inter', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' }, '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.3)' }, '&.Mui-focused fieldset': { borderColor: 'var(--color-primary)' } }, 
-                '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.5)', fontFamily: 'Inter' },
-                '& .MuiInputLabel-root.Mui-focused': { color: 'var(--color-primary)' }
+            sx={{
+              fontFamily: 'Inter',
+              '& .MuiOutlinedInput-root': { color: 'white', fontFamily: 'Inter', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' }, '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.3)' }, '&.Mui-focused fieldset': { borderColor: 'var(--color-primary)' } },
+              '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.5)', fontFamily: 'Inter' },
+              '& .MuiInputLabel-root.Mui-focused': { color: 'var(--color-primary)' }
             }}
           />
         </DialogContent>
@@ -591,8 +569,8 @@ const ProfilePage = () => {
       </Dialog>
 
       {/* Passkeys Modal */}
-      <Dialog 
-        open={passkeysModalOpen} 
+      <Dialog
+        open={passkeysModalOpen}
         onClose={() => setPasskeysModalOpen(false)}
         maxWidth="sm"
         fullWidth
@@ -601,49 +579,49 @@ const ProfilePage = () => {
         }}
       >
         <DialogTitle sx={{ fontFamily: 'Inter', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-            Manage Passkeys
+          Manage Passkeys
         </DialogTitle>
         <DialogContent sx={{ mt: 2 }}>
-            <p className="text-sm text-slate-300 mb-6">
-                Passkeys offer completely passwordless logins using your device biometric data (FaceID, TouchID, Windows Hello, or USB keys).
-            </p>
+          <p className="text-sm text-slate-300 mb-6">
+            Passkeys offer completely passwordless logins using your device biometric data (FaceID, TouchID, Windows Hello, or USB keys).
+          </p>
 
-            <div className="space-y-3 mb-6">
-                {passkeysList.map(pk => (
-                    <div key={pk.id} className="p-4 rounded-xl border border-white/10 bg-white/5 flex justify-between items-center">
-                        <div>
-                            <h4 className="font-bold text-sm">Passkey</h4>
-                            <p className="text-xs text-text-secondary">Added {new Date(pk.created_at).toLocaleDateString()}</p>
-                        </div>
-                        <Button 
-                            color="error" 
-                            size="small" 
-                            variant="outlined"
-                            onClick={() => handleDeletePasskey(pk.id)}
-                            sx={{ textTransform: 'none', borderColor: 'rgba(239, 68, 68, 0.3)' }}
-                        >
-                            Delete
-                        </Button>
-                    </div>
-                ))}
-                {passkeysList.length === 0 && (
-                    <div className="p-6 text-center rounded-xl border border-white/5 bg-background-dark/50 text-text-muted text-sm">
-                        No passkeys registered yet.
-                    </div>
-                )}
-            </div>
+          <div className="space-y-3 mb-6">
+            {passkeysList.map(pk => (
+              <div key={pk.id} className="p-4 rounded-xl border border-white/10 bg-white/5 flex justify-between items-center">
+                <div>
+                  <h4 className="font-bold text-sm">Passkey</h4>
+                  <p className="text-xs text-text-secondary">Added {new Date(pk.created_at).toLocaleDateString()}</p>
+                </div>
+                <Button
+                  color="error"
+                  size="small"
+                  variant="outlined"
+                  onClick={() => handleDeletePasskey(pk.id)}
+                  sx={{ textTransform: 'none', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                >
+                  Delete
+                </Button>
+              </div>
+            ))}
+            {passkeysList.length === 0 && (
+              <div className="p-6 text-center rounded-xl border border-white/5 bg-background-dark/50 text-text-muted text-sm">
+                No passkeys registered yet.
+              </div>
+            )}
+          </div>
 
-            <Button 
-                variant="contained"
-                onClick={handleRegisterPasskey}
-                fullWidth
-                sx={{ py: 1.5, bgcolor: 'var(--color-primary)', fontWeight: 'bold', textTransform: 'none', borderRadius: 2 }}
-            >
-                Register New Passkey
-            </Button>
+          <Button
+            variant="contained"
+            onClick={handleRegisterPasskey}
+            fullWidth
+            sx={{ py: 1.5, bgcolor: 'var(--color-primary)', fontWeight: 'bold', textTransform: 'none', borderRadius: 2 }}
+          >
+            Register New Passkey
+          </Button>
         </DialogContent>
         <DialogActions sx={{ p: 3, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-            <Button onClick={() => setPasskeysModalOpen(false)} sx={{ color: 'white' }}>Close</Button>
+          <Button onClick={() => setPasskeysModalOpen(false)} sx={{ color: 'white' }}>Close</Button>
         </DialogActions>
       </Dialog>
     </div>
