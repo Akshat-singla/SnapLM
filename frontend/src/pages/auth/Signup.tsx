@@ -29,9 +29,14 @@ export default function Signup() {
         e.preventDefault();
         setLoading(true);
 
-        const success = await signup(formData.email, formData.password);
-        if (success) {
-            navigate("/app");
+        const result = await signup(formData.email, formData.password);
+        if (result.success) {
+            setState("success");
+            setTimeout(() => navigate("/app"), 1000);
+        } else if (result.code === 'user_exists') {
+            setState("user-exists");
+        } else {
+            setState("error");
         }
         setLoading(false);
     };

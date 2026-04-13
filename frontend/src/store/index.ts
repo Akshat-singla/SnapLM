@@ -32,8 +32,9 @@ interface AppState {
   toasts: Array<{ id: string; type: 'success' | 'error' | 'info'; message: string }>;
 
   // Auth Actions
-  login: (email: string, password: string) => Promise<boolean>;
-  signup: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ success: boolean; code?: string; tempToken?: string }>;
+  signup: (email: string, password: string) => Promise<{ success: boolean; code?: string; tempToken?: string }>;
+  verify2FA: (code: string, tempToken: string) => Promise<{ success: boolean; code?: string }>;
   logout: () => void;
   checkAuth: () => Promise<void>;
 
@@ -161,18 +162,46 @@ const useStore = create<AppState>((set, get) => ({
     try {
       set({ authLoading: true });
       const response = await authApi.login(email, password);
+      
+      if (response.requires_2fa) {
+        set({ authLoading: false });
+        return { success: false, code: 'requires_2fa', tempToken: response.temp_token };
+      }
+
       set({ 
         user: response.user, 
         isAuthenticated: true, 
         authLoading: false 
       });
       get().addToast({ type: 'success', message: 'Welcome back!' });
-      return true;
-    } catch (error) {
+      return { success: true };
+    } catch (error: any) {
       console.error('Login failed:', error);
-      get().addToast({ type: 'error', message: 'Invalid email or password' });
+      const detail = error.response?.data?.detail;
       set({ authLoading: false });
-      return false;
+      if (detail === 'Invalid credentials') {
+        return { success: false, code: 'invalid_credentials' };
+      }
+      get().addToast({ type: 'error', message: 'Something went wrong' });
+      return { success: false, code: 'error' };
+    }
+  },
+
+  verify2FA: async (code: string, tempToken: string) => {
+    try {
+      set({ authLoading: true });
+      const response = await authApi.verify2FA(code, tempToken);
+      set({ 
+        user: response.user, 
+        isAuthenticated: true, 
+        authLoading: false 
+      });
+      get().addToast({ type: 'success', message: 'Signed in securely!' });
+      return { success: true };
+    } catch (error: any) {
+      console.error('2FA verification failed:', error);
+      set({ authLoading: false });
+      return { success: false, code: 'invalid_code' };
     }
   },
 
@@ -182,11 +211,17 @@ const useStore = create<AppState>((set, get) => ({
       await authApi.register(email, password);
       // Automatically login after signup
       return await get().login(email, password);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Signup failed:', error);
-      get().addToast({ type: 'error', message: 'Registration failed' });
+      const detail = error.response?.data?.detail;
       set({ authLoading: false });
-      return false;
+      
+      if (detail === 'User already exists') {
+        return { success: false, code: 'user_exists' };
+      }
+      
+      get().addToast({ type: 'error', message: 'Registration failed' });
+      return { success: false, code: 'error' };
     }
   },
 

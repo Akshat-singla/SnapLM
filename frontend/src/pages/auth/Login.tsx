@@ -23,9 +23,16 @@ export default function Login() {
         e.preventDefault();
         setLoading(true);
 
-        const success = await login(email, password);
-        if (success) {
-            navigate("/app");
+        const result = await login(email, password);
+        if (result.success) {
+            setState("success");
+            setTimeout(() => navigate("/app"), 1000);
+        } else if (result.code === 'requires_2fa') {
+            navigate("/auth/2FA", { state: { tempToken: result.tempToken } });
+        } else if (result.code === 'invalid_credentials') {
+            setState("error");
+        } else {
+            setState("error");
         }
         setLoading(false);
     };

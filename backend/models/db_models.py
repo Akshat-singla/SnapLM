@@ -25,6 +25,8 @@ class User(Base):
     username = Column(String(100), nullable=False, unique=True, index=True)
     email = Column(String(255), nullable=False, unique=True, index=True)
     password_hash = Column(String, nullable=True) # Temporarily nullable to avoid issues with existing users if any
+    is_2fa_enabled = Column(Boolean, default=False, server_default="false", nullable=False)
+    totp_secret = Column(String(32), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

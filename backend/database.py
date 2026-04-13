@@ -29,6 +29,16 @@ async def init_db():
         # Backfill schema for existing databases without migrations.
         await conn.execute(
             text(
-                "ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE"
+                "ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE;"
             )
         )
+        try:
+            await conn.execute(
+                text(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR;"
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_2fa_enabled BOOLEAN NOT NULL DEFAULT FALSE;"
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(32);"
+                )
+            )
+        except Exception:
+            pass # SQLite syntax limitation for multiple ADD COLUMN or if it already exists in a weird way

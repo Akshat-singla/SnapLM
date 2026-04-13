@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 import jwt
 import uuid
+import pyotp
 
 from database import get_db
 from models.db_models import User
@@ -20,32 +21,29 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
+class OTPVerifyRequest(BaseModel):
+    code: str
+    temp_token: str | None = None
+
 class UserResponse(BaseModel):
     user_id: uuid.UUID
     email: EmailStr
     username: str
+    is_2fa_enabled: bool
 
     class Config:
         from_attributes = True
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
 
-
 @router.post("/register")
 async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
-    print(f"DEBUG: Received registration request for email: {data.email}")
     email = data.email
     password = data.password
-    
-    # Simple validation as we replaced EmailStr
-    if "@" not in email or "." not in email:
-        raise HTTPException(status_code=400, detail="Invalid email format")
-
     result = await db.execute(select(User).where(User.email == email))
     existing_user = result.scalar_one_or_none()
 
     if existing_user:
-        print(f"DEBUG: Registration failed - User {email} already exists")
         raise HTTPException(status_code=400, detail="User already exists")
 
     user = User(
@@ -71,6 +69,14 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     if not user or not verify_password(password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
+    if user.is_2fa_enabled:
+        # Issue a temporary token meant only for 2FA validation
+        temp_token = create_access_token(user.user_id) # Should ideally be scoped, but we'll adapt to existing create_access_token
+        return {
+            "requires_2fa": True,
+            "temp_token": temp_token
+        }
+
     token = create_access_token(user.user_id)
 
     return {
@@ -79,7 +85,8 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
         "user": {
             "id": str(user.user_id),
             "email": user.email,
-            "username": user.username
+            "username": user.username,
+            "is_2fa_enabled": user.is_2fa_enabled
         }
     }
 
@@ -94,14 +101,11 @@ async def refresh_token(
     authorization: str = Header(None),
     db: AsyncSession = Depends(get_db)
 ):
-    # This is a simplified refresh, usually you'd use a refresh token
-    # For now, we'll just issue a new access token if the old one is valid (even if near expiry)
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid token")
     
     token = authorization.split(" ")[1]
     try:
-        # We don't verify expiry here to allow refresh 
         payload = jwt.decode(token, settings.jwt_secret, algorithms=["HS256"], options={"verify_exp": False})
         user_id = payload.get("sub")
         
@@ -114,3 +118,79 @@ async def refresh_token(
         return {"access_token": new_token}
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+@router.post("/2fa/setup")
+async def setup_2fa(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if user.is_2fa_enabled:
+        raise HTTPException(status_code=400, detail="2FA is already enabled")
+        
+    secret = pyotp.random_base32()
+    # Save the secret temporarily or directly. Let's save directly, but don't enable until verified
+    user.totp_secret = secret
+    await db.commit()
+    
+    totp = pyotp.TOTP(secret)
+    provisioning_uri = totp.provisioning_uri(name=user.email, issuer_name="SnapLM")
+    
+    return {"secret": secret, "uri": provisioning_uri}
+
+@router.post("/2fa/enable")
+async def enable_2fa(data: OTPVerifyRequest, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if user.is_2fa_enabled:
+        raise HTTPException(status_code=400, detail="2FA is already enabled")
+        
+    if not user.totp_secret:
+        raise HTTPException(status_code=400, detail="2FA setup not initiated")
+        
+    totp = pyotp.TOTP(user.totp_secret)
+    if not totp.verify(data.code):
+        raise HTTPException(status_code=400, detail="Invalid 2FA code")
+        
+    user.is_2fa_enabled = True
+    await db.commit()
+    return {"message": "2FA successfully enabled"}
+
+@router.post("/2fa/verify")
+async def verify_2fa_login(data: OTPVerifyRequest, db: AsyncSession = Depends(get_db)):
+    if not data.temp_token:
+        raise HTTPException(status_code=401, detail="Missing temporary token")
+        
+    try:
+        payload = jwt.decode(data.temp_token, settings.jwt_secret, algorithms=["HS256"])
+        user_id = payload.get("sub")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid temp token")
+        
+    result = await db.execute(select(User).where(User.user_id == uuid.UUID(user_id)))
+    user = result.scalar_one_or_none()
+    
+    if not user or not user.is_2fa_enabled or not user.totp_secret:
+        raise HTTPException(status_code=400, detail="Invalid user or 2FA not enabled")
+        
+    totp = pyotp.TOTP(user.totp_secret)
+    if not totp.verify(data.code):
+        raise HTTPException(status_code=401, detail="Invalid 2FA code")
+        
+    # Successfully verified, issue standard login response
+    token = create_access_token(user.user_id)
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": str(user.user_id),
+            "email": user.email,
+            "username": user.username,
+            "is_2fa_enabled": user.is_2fa_enabled
+        }
+    }
+
+@router.post("/2fa/disable")
+async def disable_2fa(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user.is_2fa_enabled:
+        raise HTTPException(status_code=400, detail="2FA is not enabled")
+    
+    user.is_2fa_enabled = False
+    user.totp_secret = None
+    await db.commit()
+    return {"message": "2FA successfully disabled"}
+

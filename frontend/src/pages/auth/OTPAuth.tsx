@@ -1,24 +1,42 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Loader2, KeyRound } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import useStore from "../../store";
 import { useRobot } from "../../context/robotProvider";
 
 export default function OTPAuth() {
     const [otp, setOtp] = useState("");
     const { setState } = useRobot();
     const [loading, setLoading] = useState(false);
+    
+    const location = useLocation();
+    const navigate = useNavigate();
+    const verify2FA = useStore((state) => state.verify2FA);
+    
+    const tempToken = location.state?.tempToken;
 
     useEffect(() => {
+        if (!tempToken) {
+            navigate("/auth/login"); // Redirect if accessed directly without a token
+        }
         setState("otp");
-    }, []);
+    }, [tempToken, navigate, setState]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         try {
-            await new Promise((res) => setTimeout(res, 1500));
+            const result = await verify2FA(otp, tempToken);
+            if (result.success) {
+                setState("success");
+                setTimeout(() => navigate("/app"), 1000);
+            } else {
+                setState("error");
+            }
         } catch (err) {
             console.error(err);
+            setState("error");
         } finally {
             setLoading(false);
         }

@@ -322,6 +322,7 @@ export interface User {
   email: string;
   username?: string;
   created_at?: string;
+  is_2fa_enabled?: boolean;
 }
 
 export interface AuthResponse {
@@ -331,9 +332,11 @@ export interface AuthResponse {
 }
 
 export const authApi = {
-  login: async (email: string, password: string): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>('/auth/login', { email, password });
-    localStorage.setItem(AUTH_TOKEN_KEY, response.data.access_token);
+  login: async (email: string, password: string): Promise<any> => {
+    const response = await api.post('/auth/login', { email, password });
+    if (response.data.access_token) {
+      localStorage.setItem(AUTH_TOKEN_KEY, response.data.access_token);
+    }
     return response.data;
   },
 
@@ -349,6 +352,29 @@ export const authApi = {
 
   logout: () => {
     localStorage.removeItem(AUTH_TOKEN_KEY);
+  },
+
+  setup2FA: async (): Promise<{ secret: string; uri: string }> => {
+    const response = await api.post('/auth/2fa/setup');
+    return response.data;
+  },
+
+  enable2FA: async (code: string): Promise<{ message: string }> => {
+    const response = await api.post('/auth/2fa/enable', { code });
+    return response.data;
+  },
+
+  verify2FA: async (code: string, tempToken: string): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/2fa/verify', { code, temp_token: tempToken });
+    if (response.data.access_token) {
+      localStorage.setItem(AUTH_TOKEN_KEY, response.data.access_token);
+    }
+    return response.data;
+  },
+
+  disable2FA: async (): Promise<{ message: string }> => {
+    const response = await api.post('/auth/2fa/disable');
+    return response.data;
   }
 };
 
