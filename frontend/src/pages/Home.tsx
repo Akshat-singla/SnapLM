@@ -61,9 +61,11 @@ export default function HomePage() {
                                     Start Building <ArrowRight size={20} />
                                 </button>
                             </Link>
-                            <button className="bg-surface-elevated/50 border border-white/10 px-8 py-4 rounded-2xl hover:bg-surface-elevated transition-colors backdrop-blur-sm">
-                                Watch the Keynote
-                            </button>
+                            <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" rel="noopener noreferrer">
+                                <button className="bg-surface-elevated/50 border border-white/10 px-8 py-4 rounded-2xl hover:bg-surface-elevated transition-colors backdrop-blur-sm">
+                                    Watch the Keynote
+                                </button>
+                            </a>
                         </div>
                     </motion.div>
 
@@ -80,7 +82,7 @@ export default function HomePage() {
             </section>
 
             {/* Bento Grid Features */}
-            <section className="max-w-7xl mx-auto px-6 py-32">
+            <section id="features" className="max-w-7xl mx-auto px-6 py-32">
                 <div className="text-center mb-20">
                     <h3 className="text-4xl md:text-5xl font-display font-bold mb-4">Powerful from day one.</h3>
                     <p className="text-text-secondary text-lg">Everything you need to create and run fail proof LLMs.</p>

@@ -27,7 +27,7 @@ const Toolbar = () => {
         component="header"
         className="flex items-center justify-between w-full h-16 shrink-0 px-4 sm:px-6 z-50 backdrop-blur-md border-b"
         sx={{ 
-          background: 'rgba(17, 19, 24, 0.8)', 
+          background: 'rgba(var(--color-bg-dark-rgb), 0.8)', 
           borderColor: 'rgba(255, 255, 255, 0.1)'
         }}
       >
@@ -57,9 +57,9 @@ const Toolbar = () => {
               label={isBranchView ? 'Viewing shared branch (read-only)' : 'Viewing shared workspace (read-only)'} 
               size="small"
               sx={{ 
-                bgcolor: 'rgba(251, 191, 36, 0.1)', 
-                color: '#fbbf24', 
-                border: '1px solid rgba(251, 191, 36, 0.2)',
+                bgcolor: 'rgba(var(--color-node-user-rgb), 0.1)', 
+                color: 'var(--color-node-user)', 
+                border: '1px solid rgba(var(--color-node-user-rgb), 0.2)',
                 fontWeight: 500
               }} 
             />
@@ -74,12 +74,12 @@ const Toolbar = () => {
                 startIcon={<Share2 size={18} />}
                 onClick={() => createShareLink()}
                 sx={{ 
-                  bgcolor: '#7c3aed', 
-                  '&:hover': { bgcolor: '#6d28d9' }, 
+                  bgcolor: 'var(--color-primary)', 
+                  '&:hover': { bgcolor: 'var(--color-primary-hover)' }, 
                   textTransform: 'none',
                   fontWeight: 600,
                   borderRadius: 2,
-                  boxShadow: 'none'
+                  boxShadow: '0 4px 14px 0 rgba(var(--color-primary-rgb), 0.39)'
                 }}
               >
                 Share Brain
@@ -139,7 +139,7 @@ const Toolbar = () => {
             onClose={() => setNotificationAnchor(null)}
             PaperProps={{
               sx: {
-                bgcolor: 'rgba(15, 23, 42, 0.95)',
+                bgcolor: 'rgba(var(--color-bg-dark-rgb), 0.95)',
                 color: 'white',
                 border: '1px solid rgba(255,255,255,0.1)',
                 backdropFilter: 'blur(10px)',
@@ -154,7 +154,7 @@ const Toolbar = () => {
             <MenuItem onClick={() => setNotificationAnchor(null)} sx={{ fontSize: '0.875rem' }}>Your model finished training</MenuItem>
             <MenuItem onClick={() => setNotificationAnchor(null)} sx={{ fontSize: '0.875rem' }}>John shared a branch</MenuItem>
             <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
-            <MenuItem onClick={() => setNotificationAnchor(null)} sx={{ fontSize: '0.875rem', color: '#a78bfa' }}>View all notifications</MenuItem>
+            <MenuItem onClick={() => setNotificationAnchor(null)} sx={{ fontSize: '0.875rem', color: 'var(--color-primary)' }}>View all notifications</MenuItem>
           </Menu>
         </div>
       </Box>

@@ -14,7 +14,7 @@ export default function Header({ minimal = false }: { minimal?: boolean }) {
     const borderOpacity = useTransform(scrollY, [0, 50], ["rgba(255,255,255,0)", "rgba(255,255,255,0.1)"]);
 
     const navLinks = [
-        { name: "Features", path: "#" },
+        { name: "Features", path: "/#features" },
         { name: "Pricing", path: "#" },
         { name: "Docs", path: "#" },
         { name: "Changelog", path: "/changelog" }

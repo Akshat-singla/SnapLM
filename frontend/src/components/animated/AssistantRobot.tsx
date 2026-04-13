@@ -123,7 +123,7 @@ export default function AssistantRobot() {
                             exit={{ y: -8, opacity: 0 }}
                             transition={{ duration: 0.2 }}
                             className="text-sm font-mono font-bold tracking-[0.3em] uppercase transition-colors duration-500"
-                            style={{ textShadow: `0 0 12px ${current.color}90` }}
+                            style={{ textShadow: `0 0 12px rgba(var(${current.rgb}), 0.5)` }}
                         >
                             {state.replace(/-/g, "_")}
                         </motion.span>
@@ -183,7 +183,7 @@ export default function AssistantRobot() {
                         {/* Inner glowing core background keyed to state color */}
                         <div 
                             className="absolute inset-0 opacity-80 mix-blend-screen pointer-events-none transition-colors duration-700"
-                            style={{ background: `radial-gradient(circle at top right, ${current.color}33 0%, transparent 70%)` }}
+                            style={{ background: `radial-gradient(circle at top right, rgba(var(${current.rgb}), 0.2) 0%, transparent 70%)` }}
                         />
                         
                         {/* Diagonal tech scanner line */}
@@ -210,8 +210,8 @@ export default function AssistantRobot() {
                                 ref={pupilRef}
                                 className="relative w-8 h-8 rounded-full flex items-center justify-center overflow-hidden transition-colors duration-700 drop-shadow-lg"
                                 style={{
-                                    background: `radial-gradient(circle at 30% 30%, ${current.color}, #000 120%)`,
-                                    boxShadow: `0 0 25px ${current.color}99`
+                                    background: `radial-gradient(circle at 30% 30%, var(${current.rgb === '--color-primary-rgb' ? '--color-primary' : current.rgb.replace('-rgb', '')}), #000 120%)`,
+                                    boxShadow: `0 0 25px rgba(var(${current.rgb}), 0.6)`
                                 }}
                             >
                                 {/* Mechanical / Iris detailing */}

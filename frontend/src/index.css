@@ -9,6 +9,7 @@
   :root {
     /* ─── Brand / Primary ──────────────────────── */
     --color-primary: #135bec;
+    --color-primary-rgb: 19, 91, 236;
     --color-primary-hover: #2563eb;
     --color-notification: rgb(231, 153, 7);
     /* ─── Backgrounds ──────────────────────────── */
@@ -19,6 +20,7 @@
     --color-surface-dark: #1a1d26;
     --color-surface-border: #282e39;
     --color-surface-elevated: #1c222e;
+    --color-surface-elevated-rgb: 28, 34, 46;
     --color-surface-focus: #1f242e;
     --color-surface-hover: #374151;
     --color-surface-muted: #334155;
@@ -43,10 +45,15 @@
 
     /* ─── Node Status ──────────────────────────── */
     --color-node-active: #0ea5e9;
+    --color-node-active-rgb: 14, 165, 233;
     --color-node-frozen: #8b5cf6;
+    --color-node-frozen-rgb: 139, 92, 246;
     --color-node-deleted: #ef4444;
+    --color-node-deleted-rgb: 239, 68, 68;
     --color-node-ai: #10b981;
+    --color-node-ai-rgb: 16, 185, 129;
     --color-node-user: #f59e0b;
+    --color-node-user-rgb: 245, 158, 11;
 
     /* ─── Canvas variables (light mode) ────────── */
     --bg-canvas: #fafaf9;
@@ -67,6 +74,10 @@
     --bg-canvas: #111318;
     --bg-node: #1a1d26;
     --text-primary: #ffffff;
+  }
+
+  html {
+    scroll-behavior: smooth;
   }
 
   body {

@@ -1,87 +1,101 @@
-const robotConfig: Record<string, { text: string; glow: string; scale: number; color: string }> = {
+const robotConfig: Record<string, { text: string; glow: string; scale: number; color: string; rgb: string }> = {
     login: {
         text: "Awaiting credentials...",
-        glow: "shadow-[0_0_60px_rgba(19,91,236,0.2)]",
+        glow: "shadow-[0_0_60px_rgba(var(--color-primary-rgb),0.2)]",
         scale: 1,
-        color: "#135bec", // primary blue
+        color: "var(--color-primary)",
+        rgb: "--color-primary-rgb",
     },
     signup: {
         text: "Initializing new identity...",
-        glow: "shadow-[0_0_80px_rgba(34,197,94,0.25)]",
+        glow: "shadow-[0_0_80px_rgba(var(--color-node-ai-rgb),0.25)]",
         scale: 1.05,
-        color: "#22c55e", // green-500
+        color: "var(--color-node-ai)",
+        rgb: "--color-node-ai-rgb",
     },
     "typing-email": {
         text: "Analyzing email pattern...",
-        glow: "shadow-[0_0_80px_rgba(59,130,246,0.3)]",
+        glow: "shadow-[0_0_80px_rgba(var(--color-primary-rgb),0.3)]",
         scale: 1.03,
-        color: "#3b82f6", // blue-500
+        color: "var(--color-primary)",
+        rgb: "--color-primary-rgb",
     },
     "typing-name": {
         text: "Verifying identity format...",
-        glow: "shadow-[0_0_80px_rgba(245,158,11,0.3)]",
+        glow: "shadow-[0_0_80px_rgba(var(--color-node-user-rgb),0.3)]",
         scale: 1.03,
-        color: "#f59e0b", // amber-500
+        color: "var(--color-node-user)",
+        rgb: "--color-node-user-rgb",
     },
     "typing-password": {
         text: "Encrypting credentials...",
-        glow: "shadow-[0_0_80px_rgba(168,85,247,0.3)]",
+        glow: "shadow-[0_0_80px_rgba(var(--color-node-frozen-rgb),0.3)]",
         scale: 1.02,
-        color: "#a855f7", // purple-500
+        color: "var(--color-node-frozen)",
+        rgb: "--color-node-frozen-rgb",
     },
     "forgot-password": {
         text: "Searching recovery routes...",
-        glow: "shadow-[0_0_60px_rgba(249,115,22,0.2)]",
+        glow: "shadow-[0_0_60px_rgba(var(--color-node-user-rgb),0.2)]",
         scale: 1,
-        color: "#f97316", // orange-500
+        color: "var(--color-node-user)",
+        rgb: "--color-node-user-rgb",
     },
     "reset-password": {
         text: "Ready for new security key...",
-        glow: "shadow-[0_0_80px_rgba(139,92,246,0.3)]",
+        glow: "shadow-[0_0_80px_rgba(var(--color-node-frozen-rgb),0.3)]",
         scale: 1.02,
-        color: "#8b5cf6", // violet-500
+        color: "var(--color-node-frozen)",
+        rgb: "--color-node-frozen-rgb",
     },
     otp: {
         text: "Awaiting security token...",
-        glow: "shadow-[0_0_80px_rgba(14,165,233,0.3)]",
+        glow: "shadow-[0_0_80px_rgba(var(--color-node-active-rgb),0.3)]",
         scale: 1.04,
-        color: "#0ea5e9", // sky-500
+        color: "var(--color-node-active)",
+        rgb: "--color-node-active-rgb",
     },
     passkey: {
         text: "Scanning biometric passkey...",
-        glow: "shadow-[0_0_80px_rgba(16,185,129,0.3)]",
+        glow: "shadow-[0_0_80px_rgba(var(--color-node-ai-rgb),0.3)]",
         scale: 1.05,
-        color: "#10b981", // emerald-500
+        color: "var(--color-node-ai)",
+        rgb: "--color-node-ai-rgb",
     },
     "user-exists": {
         text: "Identity collision detected.",
-        glow: "shadow-[0_0_80px_rgba(244,63,94,0.3)]",
+        glow: "shadow-[0_0_80px_rgba(var(--color-node-deleted-rgb),0.3)]",
         scale: 1,
-        color: "#f43f5e", // rose-500
+        color: "var(--color-node-deleted)",
+        rgb: "--color-node-deleted-rgb",
     },
     "email-sent": {
         text: "Courier dispatched securely.",
-        glow: "shadow-[0_0_80px_rgba(56,189,248,0.3)]",
+        glow: "shadow-[0_0_80px_rgba(var(--color-node-active-rgb),0.3)]",
         scale: 1.05,
-        color: "#38bdf8", // light blue
+        color: "var(--color-node-active)",
+        rgb: "--color-node-active-rgb",
     },
     success: {
         text: "Access granted.",
-        glow: "shadow-[0_0_100px_rgba(34,197,94,0.4)]",
+        glow: "shadow-[0_0_100px_rgba(var(--color-node-ai-rgb),0.4)]",
         scale: 1.08,
-        color: "#22c55e", // green-500
+        color: "var(--color-node-ai)",
+        rgb: "--color-node-ai-rgb",
     },
     error: {
         text: "Authentication failed.",
-        glow: "shadow-[0_0_100px_rgba(239,68,68,0.4)]",
+        glow: "shadow-[0_0_100px_rgba(var(--color-node-deleted-rgb),0.4)]",
         scale: 0.95,
-        color: "#ef4444", // red-500
+        color: "var(--color-node-deleted)",
+        rgb: "--color-node-deleted-rgb",
     },
     idle: {
         text: "Listening for context...",
-        glow: "shadow-[0_0_60px_rgba(19,91,236,0.15)]",
+        glow: "shadow-[0_0_60px_rgba(var(--color-primary-rgb),0.15)]",
         scale: 1,
-        color: "#135bec", // primary blue
+        color: "var(--color-primary)",
+        rgb: "--color-primary-rgb",
     },
 };
 

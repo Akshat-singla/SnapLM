@@ -83,7 +83,7 @@ function SceneContent({ count = 300 }) {
                         args={[positions, 3]}
                     />
                 </bufferGeometry>
-                <PointMaterial transparent color="#a78bfa" size={0.15} sizeAttenuation={true} depthWrite={false} />
+                <PointMaterial transparent color="var(--color-primary)" size={0.15} sizeAttenuation={true} depthWrite={false} />
             </points>
 
             {/* The connections */}
@@ -97,7 +97,7 @@ function SceneContent({ count = 300 }) {
                         args={[linesList, 3]}
                     />
                 </bufferGeometry>
-                <lineBasicMaterial color="#6d28d9" transparent opacity={0.2} depthWrite={false} />
+                <lineBasicMaterial color="var(--color-primary)" transparent opacity={0.2} depthWrite={false} />
             </lineSegments>
             
             <Grid
@@ -105,10 +105,10 @@ function SceneContent({ count = 300 }) {
                 args={[100, 100]}
                 cellSize={1}
                 cellThickness={1}
-                cellColor="#7c3aed"
+                cellColor="var(--color-primary)"
                 sectionSize={5}
                 sectionThickness={1.5}
-                sectionColor="#8b5cf6"
+                sectionColor="var(--color-primary-hover)"
                 fadeDistance={50}
                 fadeStrength={1.5}
             />
@@ -120,7 +120,7 @@ export default function NetworkBackground() {
     return (
         <div className="absolute inset-0 w-full h-full pointer-events-none z-0">
             <Canvas camera={{ position: [0, 5, 25], fov: 60 }} dpr={[1, 2]}>
-                <fog attach="fog" args={['#0f172a', 15, 45]} />
+                <fog attach="fog" args={['var(--color-bg-dark)', 15, 45]} />
                 <ambientLight intensity={1} />
                 <SceneContent count={300} />
             </Canvas>

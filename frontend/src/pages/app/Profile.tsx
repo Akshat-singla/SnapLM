@@ -121,13 +121,14 @@ const ProfilePage = () => {
               sx={{ 
                 p: { xs: 4, md: 5 }, 
                 borderRadius: 4, 
-                bgcolor: 'rgba(20, 25, 35, 0.9)', 
+                bgcolor: 'var(--color-surface-elevated)', 
                 border: '1px solid rgba(255,255,255,0.08)',
                 textAlign: 'center',
-                color: 'white'
+                color: 'white',
+                backdropFilter: 'blur(10px)',
               }}
             >
-              <Avatar sx={{ width: 90, height: 90, margin: '0 auto', mb: 3, bgcolor: '#7c3aed', color: 'white', fontSize: '2.5rem', fontWeight: 'bold', fontFamily: 'Inter' }}>
+              <Avatar sx={{ width: 90, height: 90, margin: '0 auto', mb: 3, bgcolor: 'var(--color-primary)', color: 'white', fontSize: '2.5rem', fontWeight: 'bold', fontFamily: 'Inter' }}>
                 {profile?.username?.[0]}
               </Avatar>
 
@@ -142,7 +143,7 @@ const ProfilePage = () => {
                 sx={{ 
                   mt: 2, 
                   bgcolor: 'rgba(16, 185, 129, 0.15)', 
-                  color: '#10b981', 
+                  color: 'var(--color-node-ai)', 
                   fontWeight: 'bold',
                   fontFamily: 'Inter'
                 }} 
@@ -157,9 +158,10 @@ const ProfilePage = () => {
               sx={{ 
                 p: { xs: 4, md: 5 }, 
                 borderRadius: 4, 
-                bgcolor: 'rgba(20, 25, 35, 0.9)', 
+                bgcolor: 'var(--color-surface-elevated)', 
                 border: '1px solid rgba(255,255,255,0.08)',
-                color: 'white'
+                color: 'white',
+                backdropFilter: 'blur(10px)',
               }}
             >
               <div className="flex items-center gap-2 mb-6">
@@ -211,9 +213,10 @@ const ProfilePage = () => {
               sx={{ 
                 p: { xs: 4, md: 6 }, 
                 borderRadius: 4, 
-                bgcolor: 'rgba(20, 25, 35, 0.9)', 
+                bgcolor: 'var(--color-surface-elevated)', 
                 border: '1px solid rgba(255,255,255,0.08)',
-                color: 'white'
+                color: 'white',
+                backdropFilter: 'blur(10px)',
               }}
             >
               <h2 className="font-display text-2xl font-bold mb-2">
@@ -232,9 +235,9 @@ const ProfilePage = () => {
                   variant="outlined"
                   sx={{ 
                     fontFamily: 'Inter',
-                    '& .MuiOutlinedInput-root': { color: 'white', fontFamily: 'Inter', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' }, '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.3)' } }, 
-                    '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.7)', fontFamily: 'Inter' },
-                    '& .MuiInputLabel-root.Mui-focused': { color: '#a78bfa' }
+                    '& .MuiOutlinedInput-root': { color: 'white', fontFamily: 'Inter', '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' }, '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.2)' }, '&.Mui-focused fieldset': { borderColor: 'var(--color-primary)' } }, 
+                    '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.5)', fontFamily: 'Inter' },
+                    '& .MuiInputLabel-root.Mui-focused': { color: 'var(--color-primary)' }
                   }}
                 />
 
@@ -247,9 +250,9 @@ const ProfilePage = () => {
                   variant="outlined"
                   sx={{ 
                     fontFamily: 'Inter',
-                    '& .MuiOutlinedInput-root': { color: 'white', fontFamily: 'Inter', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' }, '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.3)' } }, 
-                    '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.7)', fontFamily: 'Inter' },
-                    '& .MuiInputLabel-root.Mui-focused': { color: '#a78bfa' }
+                    '& .MuiOutlinedInput-root': { color: 'white', fontFamily: 'Inter', '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' }, '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.2)' }, '&.Mui-focused fieldset': { borderColor: 'var(--color-primary)' } }, 
+                    '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.5)', fontFamily: 'Inter' },
+                    '& .MuiInputLabel-root.Mui-focused': { color: 'var(--color-primary)' }
                   }}
                 />
 
@@ -259,14 +262,15 @@ const ProfilePage = () => {
                     disabled={saving} 
                     variant="contained"
                     sx={{ 
-                      bgcolor: '#7c3aed', 
-                      '&:hover': { bgcolor: '#6d28d9' }, 
+                      bgcolor: 'var(--color-primary)', 
+                      '&:hover': { bgcolor: 'var(--color-primary-hover)' }, 
                       textTransform: 'none', 
                       px: 5, 
                       py: 1.5,
                       fontWeight: 'bold',
                       fontFamily: 'Inter',
-                      borderRadius: 2
+                      borderRadius: 2,
+                      boxShadow: '0 4px 14px 0 rgba(var(--color-primary-rgb), 0.39)',
                     }}
                   >
                     {saving ? 'Saving...' : 'Save Changes'}
@@ -283,9 +287,10 @@ const ProfilePage = () => {
               sx={{ 
                 p: { xs: 4, md: 6 }, 
                 borderRadius: 4, 
-                bgcolor: 'rgba(20, 25, 35, 0.9)', 
+                bgcolor: 'var(--color-surface-elevated)', 
                 border: '1px solid rgba(255,255,255,0.08)',
-                color: 'white'
+                color: 'white',
+                backdropFilter: 'blur(10px)',
               }}
             >
               <h2 className="font-display text-2xl font-bold mb-2">
