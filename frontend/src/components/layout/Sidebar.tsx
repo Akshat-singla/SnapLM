@@ -14,6 +14,7 @@ const Sidebar = () => {
     setCurrentProject,
     archiveProject,
     unarchiveProject,
+    loading,
   } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [isTreeExpanded, setIsTreeExpanded] = useState(true);
@@ -68,7 +69,13 @@ const Sidebar = () => {
           <div className="px-3 pb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Projects</div>
 
           <div className="space-y-1 px-1">
-            {activeProjects.length > 0 ? (
+            {loading.projects ? (
+              <>
+                <div className="h-8 w-full bg-white/5 animate-pulse rounded-lg mb-1" />
+                <div className="h-8 w-full bg-white/5 animate-pulse rounded-lg mb-1" />
+                <div className="h-8 w-full bg-white/5 animate-pulse rounded-lg" />
+              </>
+            ) : activeProjects.length > 0 ? (
               activeProjects.map((project) => (
                 <div
                   key={project.project_id}

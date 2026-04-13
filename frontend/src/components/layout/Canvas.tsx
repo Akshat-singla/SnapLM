@@ -20,8 +20,10 @@ const edgeTypes = {
   context: ContextEdge,
 };
 
+import { NodeSkeleton } from '../Skeleton';
+
 const CanvasWrapper = () => {
-  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, setSelectedNode } = useStore();
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, setSelectedNode, loading } = useStore();
 
   const handleNodeDragStop = async (_event: React.MouseEvent, node: Node<NodeData>) => {
     try {
@@ -38,6 +40,22 @@ const CanvasWrapper = () => {
   const handlePaneClick = () => {
     setSelectedNode(null);
   };
+
+  if (loading.nodes) {
+    return (
+      <div className="flex-1 w-full h-full flex items-center justify-center bg-background-dark relative">
+        <div className="grid grid-cols-2 gap-8 opacity-40">
+           <NodeSkeleton />
+           <NodeSkeleton />
+           <NodeSkeleton />
+           <NodeSkeleton />
+        </div>
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+           <p className="text-primary font-bold tracking-widest animate-pulse">SYNCHRONIZING CANVAS...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex-1 w-full h-full bg-background-dark relative group/canvas">

@@ -1,10 +1,15 @@
 import { create } from 'zustand';
 import { type Node, type Edge, type Connection, addEdge, applyNodeChanges, applyEdgeChanges, type NodeChange, type EdgeChange } from 'reactflow';
 import type { NodeData, Message } from '../types/node.types';
-import { canvasApi, nodesApi, projectsApi, type Project } from '../services/api/client';
+import { canvasApi, nodesApi, projectsApi, type Project, authApi, type User, default as api } from '../services/api/client';
 
 interface AppState {
   archiveNodeBranch: (nodeId: string) => Promise<void>;
+  // Auth State
+  user: User | null;
+  isAuthenticated: boolean;
+  authLoading: boolean;
+
   // Canvas State
   nodes: Node<NodeData>[];
   edges: Edge[];
@@ -25,6 +30,12 @@ interface AppState {
   messages: Record<string, Message[]>; // Chat messages per node
   loading: Record<string, boolean>; // generic loading states by key
   toasts: Array<{ id: string; type: 'success' | 'error' | 'info'; message: string }>;
+
+  // Auth Actions
+  login: (email: string, password: string) => Promise<boolean>;
+  signup: (email: string, password: string) => Promise<boolean>;
+  logout: () => void;
+  checkAuth: () => Promise<void>;
 
   // Project Actions
   fetchProjects: () => Promise<void>;
@@ -124,6 +135,10 @@ const buildEdgesFromNodes = (nodes: Node<NodeData>[]): Edge[] => {
 };
 
 const useStore = create<AppState>((set, get) => ({
+  user: null,
+  isAuthenticated: false,
+  authLoading: true,
+
   nodes: [],
   edges: [],
   isInitialized: false,
@@ -141,6 +156,55 @@ const useStore = create<AppState>((set, get) => ({
   messages: {},
   loading: {},
   toasts: [],
+
+  login: async (email, password) => {
+    try {
+      set({ authLoading: true });
+      const response = await authApi.login(email, password);
+      set({ 
+        user: response.user, 
+        isAuthenticated: true, 
+        authLoading: false 
+      });
+      get().addToast({ type: 'success', message: 'Welcome back!' });
+      return true;
+    } catch (error) {
+      console.error('Login failed:', error);
+      get().addToast({ type: 'error', message: 'Invalid email or password' });
+      set({ authLoading: false });
+      return false;
+    }
+  },
+
+  signup: async (email, password) => {
+    try {
+      set({ authLoading: true });
+      await authApi.register(email, password);
+      // Automatically login after signup
+      return await get().login(email, password);
+    } catch (error) {
+      console.error('Signup failed:', error);
+      get().addToast({ type: 'error', message: 'Registration failed' });
+      set({ authLoading: false });
+      return false;
+    }
+  },
+
+  logout: () => {
+    authApi.logout();
+    set({ user: null, isAuthenticated: false, projects: [], currentProjectId: null });
+    get().addToast({ type: 'info', message: 'Logged out successfully' });
+  },
+
+  checkAuth: async () => {
+    try {
+      set({ authLoading: true });
+      const user = await authApi.getMe();
+      set({ user, isAuthenticated: true, authLoading: false });
+    } catch (error) {
+      set({ user: null, isAuthenticated: false, authLoading: false });
+    }
+  },
 
   fetchProjects: async () => {
     try {
@@ -253,17 +317,13 @@ const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  //archive leaf nodes action
   archiveNodeBranch: async (nodeId: string) => {
   try {
-    const response = await fetch(`/api/v1/nodes/${nodeId}/archive`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const response = await api.post(`/nodes/${nodeId}/archive`);
     
-    if (!response.ok) throw new Error('Failed to archive node branch');
+    if (response.status !== 200) throw new Error('Failed to archive node branch');
     
-    const data = await response.json();
+    const data = response.data;
     const archivedIds = new Set<string>(data.archived_node_ids ?? []);
 
  set((state) => ({
@@ -382,7 +442,7 @@ const useStore = create<AppState>((set, get) => ({
       set({ loading: { ...get().loading, sharedBranch: true } });
       const data = await canvasApi.importBranch(shareId);
 
-      const nodes: Node<NodeData>[] = data.nodes.map((n) => ({
+      const nodes: Node<NodeData>[] = data.nodes.map((n: any) => ({
         id: n.node_id,
         position: n.position || { x: 0, y: 0 },
         type: 'custom',
@@ -402,7 +462,7 @@ const useStore = create<AppState>((set, get) => ({
 
       const edges: Edge[] =
         data.edges && data.edges.length > 0
-          ? data.edges.map((e) => ({
+          ? data.edges.map((e: any) => ({
               id: e.id,
               source: e.source,
               target: e.target,
@@ -416,9 +476,9 @@ const useStore = create<AppState>((set, get) => ({
           : buildEdgesFromNodes(nodes);
 
       const mappedMessages = Object.fromEntries(
-        Object.entries(data.messages).map(([nodeId, msgs]) => [
+        Object.entries(data.messages).map(([nodeId, msgs]: [string, any]) => [
           nodeId,
-          msgs.map((m) => ({
+          msgs.map((m: any) => ({
             id: m.message_id,
             role: m.role as Message['role'],
             content: m.content,
@@ -522,9 +582,7 @@ fetchNodes: async () => {
 
     // Prevent deleting root
     if (nodeToRemove?.data.nodeType === 'root') {
-      set((state) => ({
-        toasts: [...state.toasts, { id: 'root-delete-err', type: 'error', message: 'Cannot delete root node' }]
-      }));
+      get().addToast({ type: 'error', message: 'Cannot delete root node' });
       return;
     }
 

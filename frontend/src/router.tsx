@@ -19,6 +19,8 @@ import OTPAuth from "./pages/auth/OTPAuth";
 import PasskeyLogin from "./pages/auth/PasskeyLogin";
 import { RobotProvider } from "./context/robotProvider";
 
+import Protected from "./components/Protected";
+
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -64,7 +66,7 @@ export const router = createBrowserRouter([
   // APP ROUTES
   {
     path: "/app",
-    element: <RootLayout />,
+    element: <Protected><RootLayout /></Protected>,
     children: [
       {
         index: true,

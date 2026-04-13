@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2, Mail, Lock, User, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useRobot } from "../../context/robotProvider";
+import useStore from "../../store";
 
 export default function Signup() {
     const [formData, setFormData] = useState({
@@ -11,6 +12,7 @@ export default function Signup() {
         password: "",
     });
     const { setState } = useRobot();
+    const signup = useStore((state) => state.signup);
     useEffect(() => {
         setState("signup");
     }, []);
@@ -27,16 +29,11 @@ export default function Signup() {
         e.preventDefault();
         setLoading(true);
 
-        try {
-            // Simulated Context Initialization
-            await new Promise((res) => setTimeout(res, 2000));
-            console.log("Account created:", formData);
-            // navigate("/onboarding"); 
-        } catch (err) {
-            console.error("Signup failed", err);
-        } finally {
-            setLoading(false);
+        const success = await signup(formData.email, formData.password);
+        if (success) {
+            navigate("/app");
         }
+        setLoading(false);
     };
 
     const containerVariants = {

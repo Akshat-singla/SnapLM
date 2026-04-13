@@ -71,3 +71,8 @@ EOF
 # Alembic
 
 backend/alembic/versions/
+
+# Docker
+Dockerfile
+docker-compose.yml
+docker-compose.*

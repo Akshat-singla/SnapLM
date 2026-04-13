@@ -19,6 +19,8 @@ import type { Message, NodeData } from '../../types/node.types';
 import { nodesApi } from '../../services/api/client';
 import type { Node } from 'reactflow';
 
+import { MessageSkeleton } from '../Skeleton';
+
 const getAncestorChain = (nodeId: string, nodes: Node<NodeData>[]): Node<NodeData>[] => {
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
   const ancestors: Node<NodeData>[] = [];
@@ -230,6 +232,14 @@ const ChatPanel = () => {
                 Today, 10:23 AM
               </span>
             </div>
+
+            {_isLoadingMessages && (
+              <>
+                <MessageSkeleton />
+                <MessageSkeleton />
+                <MessageSkeleton />
+              </>
+            )}
 
             {nodeMessages.map((msg) => (
               <div

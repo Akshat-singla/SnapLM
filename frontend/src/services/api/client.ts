@@ -2,9 +2,7 @@ import axios from 'axios';
 import type { NodeData, CreateNodeRequest, Message, NodeStatus, NodeType } from '../../types/node.types';
 import type { Node } from 'reactflow';
 
-
-
-export const USER_ID_STORAGE_KEY = 'snaplm_user_id';
+export const AUTH_TOKEN_KEY = 'snaplm_auth_token';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/v1',
@@ -14,17 +12,25 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const id = localStorage.getItem(USER_ID_STORAGE_KEY);
-  if (id) {
-    const h = config.headers;
-    if (typeof (h as { set?: (k: string, v: string) => void }).set === 'function') {
-      (h as { set: (k: string, v: string) => void }).set('X-User-Id', id);
-    } else {
-      (config.headers as Record<string, string>)['X-User-Id'] = id;
-    }
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
+
+// Add response interceptor to handle 401s
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      // Optional: redirect to login
+      // window.location.href = '/auth/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
 interface TreeNodeResponse {
   node_id: string;
@@ -311,56 +317,39 @@ export const projectsApi = {
   },
 };
 
-export interface UserProfile {
-  user_id: string;
-  username: string;
+export interface User {
+  id: string;
   email: string;
-  created_at: string;
-  projects: Project[];
+  username?: string;
+  created_at?: string;
 }
 
-export interface BranchShareNodePayload {
-  node_id: string;
-  title: string;
-  status: NodeStatus;
-  node_type: NodeType;
-  parent_id: string | null;
-  merge_parent_id?: string | null;
-  inherited_context?: Record<string, unknown> | null;
-  position: { x: number; y: number };
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: User;
 }
 
-export interface BranchImportResponse {
-  nodes: BranchShareNodePayload[];
-  edges: Array<{ id: string; source: string; target: string; type: string }>;
-  messages: Record<
-    string,
-    Array<{
-      message_id: string;
-      role: Message['role'];
-      content: string;
-      timestamp: string;
-      metadata?: Record<string, unknown>;
-    }>
-  >;
-  meta?: { project_id?: string; project_name?: string; root_node_id?: string };
-}
-
-export const userApi = {
-  register: async (username: string, email: string): Promise<UserProfile> => {
-    const response = await api.post<UserProfile>('/user/register', { username, email });
+export const authApi = {
+  login: async (email: string, password: string): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/login', { email, password });
+    localStorage.setItem(AUTH_TOKEN_KEY, response.data.access_token);
     return response.data;
   },
 
-  getProfile: async (): Promise<UserProfile> => {
-    const response = await api.get<UserProfile>('/user/profile');
+  register: async (email: string, password: string): Promise<{ message: string; user_id: string }> => {
+    const response = await api.post('/auth/register', { email, password });
     return response.data;
   },
 
-  updateProfile: async (data: { username?: string; email?: string }): Promise<UserProfile> => {
-    const response = await api.put<UserProfile>('/user/profile/update', data);
+  getMe: async (): Promise<User> => {
+    const response = await api.get<User>('/auth/me');
     return response.data;
   },
+
+  logout: () => {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+  }
 };
 
 export const canvasApi = {
@@ -382,8 +371,8 @@ export const canvasApi = {
     return response.data;
   },
 
-  importBranch: async (shareId: string): Promise<BranchImportResponse> => {
-    const response = await api.get<BranchImportResponse>(`/canvas/import-branch/${shareId}`);
+  importBranch: async (shareId: string): Promise<any> => {
+    const response = await api.get(`/canvas/import-branch/${shareId}`);
     return response.data;
   },
 };

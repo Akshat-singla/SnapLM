@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2, Mail, Lock, Smartphone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useRobot } from "../../context/robotProvider";
+import useStore from "../../store";
 
 export default function Login() {
     const [email, setEmail] = useState("");
@@ -16,21 +17,17 @@ export default function Login() {
 
 
     const navigate = useNavigate();
+    const login = useStore((state) => state.login);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
-        try {
-            // Simulated API delay
-            await new Promise((res) => setTimeout(res, 1500));
-            console.log("Login success:", { email, password });
-            navigate("/auth/2FA"); 
-        } catch (err) {
-            console.error("Login failed", err);
-        } finally {
-            setLoading(false);
+        const success = await login(email, password);
+        if (success) {
+            navigate("/app");
         }
+        setLoading(false);
     };
 
     // Animation Variants
