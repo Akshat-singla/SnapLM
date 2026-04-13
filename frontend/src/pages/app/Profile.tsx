@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Loader2, CreditCard } from 'lucide-react';
+import { ArrowLeft, Loader2, CreditCard, LogOut, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -29,6 +29,7 @@ const ProfilePage = () => {
   const user = useStore(state => state.user);
   const projects = useStore(state => state.projects);
   const checkAuth = useStore(state => state.checkAuth);
+  const logout = useStore(state => state.logout);
 
   const [editUsername, setEditUsername] = useState('');
   const [editEmail, setEditEmail] = useState('');
@@ -107,6 +108,18 @@ const ProfilePage = () => {
     } catch (err) {
       addToast({ type: 'error', message: 'Invalid 2FA code' });
     }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/auth/login');
+  };
+
+  const handleClearData = () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    logout();
+    window.location.href = '/auth/login';
   };
 
   if (loading) {
@@ -438,6 +451,49 @@ const ProfilePage = () => {
                 )) : (
                    <p className="text-slate-400">No projects found. Create one in the canvas area!</p>
                 )}
+              </div>
+            </Paper>
+          </motion.div>
+
+          {/* Danger Zone Card */}
+          <motion.div variants={fadeUp} initial="hidden" animate="show">
+            <Paper 
+              elevation={0}
+              sx={{ 
+                p: { xs: 4, md: 6 }, 
+                borderRadius: 4, 
+                bgcolor: 'var(--color-surface-elevated)', 
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                color: 'white',
+                backdropFilter: 'blur(10px)',
+              }}
+            >
+              <h2 className="font-display text-2xl font-bold mb-2 text-red-500">
+                Danger Zone
+              </h2>
+              <p className="font-body text-text-secondary text-sm mb-6">
+                Manage your session and local data. Clearing cache acts as a hard reset for local states.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button 
+                  variant="outlined" 
+                  color="inherit"
+                  onClick={handleLogout}
+                  startIcon={<LogOut size={18} />}
+                  sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.2)', textTransform: 'none', fontWeight: 'bold' }}
+                >
+                  Logout
+                </Button>
+                <Button 
+                  variant="contained" 
+                  color="error"
+                  onClick={handleClearData}
+                  startIcon={<Trash2 size={18} />}
+                  sx={{ textTransform: 'none', fontWeight: 'bold' }}
+                >
+                  Clear Cache & Data
+                </Button>
               </div>
             </Paper>
           </motion.div>
