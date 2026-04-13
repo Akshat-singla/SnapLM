@@ -1,13 +1,15 @@
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
+import { Link } from "react-router-dom";
 import { Sparkles, Zap, Brain, ArrowRight, GanttChart, Code2, ShieldCheck, Globe } from "lucide-react";
 import StickyUpdate from "../components/landing/StickyUpdate";
 import StaggeredText from "../components/animated/StaggeredText";
 import TerminalMockup from "../components/landing/TerminalMockup";
 import HowItWorks from "../components/landing/HowItWorks";
 import Header from "../components/landing/Header";
+import NetworkBackground from "../components/landing/NetworkBackground";
 
 // Animation Variants
-const containerVariants = {
+const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
         opacity: 1,
@@ -15,7 +17,7 @@ const containerVariants = {
     }
 };
 
-const itemVariants = {
+const itemVariants: Variants = {
     hidden: { y: 20, opacity: 0 },
     visible: { y: 0, opacity: 1, transition: { duration: 0.5, ease: "easeOut" } }
 };
@@ -30,7 +32,9 @@ export default function HomePage() {
 
             {/* Hero Section */}
             <section className="relative pt-20 pb-32">
-                <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))] opacity-20 pointer-events-none" />
+                <div className="absolute inset-0 [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))] z-0">
+                    <NetworkBackground />
+                </div>
 
                 {/* Dynamic Ambient Glow */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-primary/20 blur-[150px] rounded-full pointer-events-none" />
@@ -52,9 +56,11 @@ export default function HomePage() {
                         </p>
 
                         <div className="mt-10 flex flex-wrap gap-4">
-                            <button className="bg-primary hover:shadow-[0_0_20px_rgba(var(--primary-rgb),0.4)] px-8 py-4 rounded-2xl text-white font-bold flex items-center gap-3 transition-all">
-                                Start Building <ArrowRight size={20} />
-                            </button>
+                            <Link to="/auth/signup">
+                                <button className="bg-primary hover:shadow-[0_0_20px_rgba(var(--primary-rgb),0.4)] px-8 py-4 rounded-2xl text-white font-bold flex items-center gap-3 transition-all">
+                                    Start Building <ArrowRight size={20} />
+                                </button>
+                            </Link>
                             <button className="bg-surface-elevated/50 border border-white/10 px-8 py-4 rounded-2xl hover:bg-surface-elevated transition-colors backdrop-blur-sm">
                                 Watch the Keynote
                             </button>
@@ -144,9 +150,11 @@ export default function HomePage() {
                         <p className="text-white/80 mt-6 text-lg max-w-xl mx-auto font-medium">
                             Join 10,000+ developers building context-aware applications with SnapLM.
                         </p>
-                        <button className="mt-10 bg-white text-primary hover:bg-background-dark hover:text-white px-10 py-5 rounded-2xl text-xl font-bold transition-all transform hover:scale-105 active:scale-95 shadow-xl">
-                            Get Your API Key — Free
-                        </button>
+                        <Link to="/auth/signup">
+                            <button className="mt-10 bg-white text-primary hover:bg-background-dark hover:text-white px-10 py-5 rounded-2xl text-xl font-bold transition-all transform hover:scale-105 active:scale-95 shadow-xl">
+                                Get Your API Key — Free
+                            </button>
+                        </Link>
                     </motion.div>
                 </div>
             </section>

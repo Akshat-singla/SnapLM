@@ -4,8 +4,10 @@ import RootLayout from "./layouts/RootLayout";
 import AppPage from "./pages/app/Main";
 import ProfilePageRoute from "./pages/app/Profile";
 import SharedPage from "./pages/app/Shared";
+import SettingsPageRoute from "./pages/app/Settings";
 import BranchPage from "./pages/app/Branch";
 import HomePage from "./pages/Home";
+import ChangelogPage from "./pages/Changelog";
 
 // AUTH
 import AuthLayout from "./layouts/AuthLayout";
@@ -21,6 +23,10 @@ export const router = createBrowserRouter([
   {
     path: "/",
     element: <HomePage />,
+  },
+  {
+    path: "/changelog",
+    element: <ChangelogPage />,
   },
 
   // AUTH ROUTES
@@ -67,6 +73,10 @@ export const router = createBrowserRouter([
       {
         path: "profile",
         element: <ProfilePageRoute />,
+      },
+      {
+        path: "settings",
+        element: <SettingsPageRoute />,
       },
       {
         path: "shared/:shareId",

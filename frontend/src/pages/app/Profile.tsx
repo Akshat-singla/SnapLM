@@ -1,225 +1,360 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, Loader2 } from 'lucide-react';
-import {
-  USER_ID_STORAGE_KEY,
-  userApi,
-  type UserProfile,
-} from '../../services/api/client';
-import useStore from '../../store';
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Loader2, CreditCard } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Button,
+  TextField,
+  Avatar,
+  Chip,
+  Paper
+} from '@mui/material';
+
+// 🧪 MOCK DATA
+const mockProfile = {
+  username: 'Aryan Sharma',
+  email: 'aryan@snapp.ai',
+  projects: [
+    {
+      project_id: '1',
+      name: 'Neural Text Engine',
+      node_count: 24,
+      created_at: '2026-01-12',
+    },
+    {
+      project_id: '2',
+      name: 'Vision Transformer Lab',
+      node_count: 18,
+      created_at: '2026-02-05',
+    },
+    {
+      project_id: '3',
+      name: 'Audio Diffusion Model',
+      node_count: 31,
+      created_at: '2026-03-20',
+    },
+  ],
+};
+
+// ✨ Animation
+const fadeUp = {
+  hidden: { opacity: 0, y: 30 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+};
 
 const ProfilePage = () => {
-  const { addToast, setCurrentProject, fetchProjects } = useStore();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const navigate = useNavigate();
+
+  const [profile, setProfile] = useState<typeof mockProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  const [regUsername, setRegUsername] = useState('');
-  const [regEmail, setRegEmail] = useState('');
 
   const [editUsername, setEditUsername] = useState('');
   const [editEmail, setEditEmail] = useState('');
 
-  const userId = localStorage.getItem(USER_ID_STORAGE_KEY);
-
-  const load = useCallback(async () => {
-    if (!localStorage.getItem(USER_ID_STORAGE_KEY)) {
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
-    try {
-      setLoading(true);
-      const p = await userApi.getProfile();
-      setProfile(p);
-      setEditUsername(p.username);
-      setEditEmail(p.email);
-    } catch {
-      setProfile(null);
-      addToast({ type: 'error', message: 'Could not load profile. Register or sign in again.' });
-      localStorage.removeItem(USER_ID_STORAGE_KEY);
-    } finally {
-      setLoading(false);
-    }
-  }, [addToast]);
-
+  // 🌀 Fake load
   useEffect(() => {
-    void load();
-  }, [load, userId]);
+    setTimeout(() => {
+      setProfile(mockProfile);
+      setEditUsername(mockProfile.username);
+      setEditEmail(mockProfile.email);
+      setLoading(false);
+    }, 400);
+  }, []);
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!regUsername.trim() || !regEmail.trim()) return;
-    setSaving(true);
-    try {
-      const p = await userApi.register(regUsername.trim(), regEmail.trim());
-      localStorage.setItem(USER_ID_STORAGE_KEY, p.user_id);
-      setProfile(p);
-      setEditUsername(p.username);
-      setEditEmail(p.email);
-      setRegUsername('');
-      setRegEmail('');
-      addToast({ type: 'success', message: 'Profile created' });
-      await fetchProjects();
-    } catch {
-      addToast({ type: 'error', message: 'Registration failed (username or email may be taken)' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
+  // 💾 Fake save
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editUsername.trim() || !editEmail.trim()) return;
     setSaving(true);
-    try {
-      const p = await userApi.updateProfile({
-        username: editUsername.trim(),
-        email: editEmail.trim(),
-      });
-      setProfile(p);
-      addToast({ type: 'success', message: 'Profile updated' });
-    } catch {
-      addToast({ type: 'error', message: 'Failed to update profile' });
-    } finally {
+
+    setTimeout(() => {
+      setProfile((prev) =>
+        prev
+          ? {
+            ...prev,
+            username: editUsername,
+            email: editEmail,
+          }
+          : prev
+      );
       setSaving(false);
-    }
+    }, 800);
   };
 
-  const openProject = async (projectId: string) => {
+  const openProject = (id: string) => {
     navigate('/app');
-    await setCurrentProject(projectId);
   };
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background-dark text-white">
+        <Loader2 className="animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col h-full w-full overflow-auto bg-background-dark text-white p-8 max-w-3xl mx-auto">
+    <div className="w-full mx-auto px-6 py-10 md:px-12">
+      {/* Back */}
       <button
-        type="button"
         onClick={() => navigate('/app')}
-        className="flex items-center gap-2 text-slate-400 hover:text-white text-sm mb-8 w-fit"
+        className="flex items-center gap-2 text-slate-400 hover:text-white mb-10 transition-colors bg-transparent border-none cursor-pointer p-0"
       >
         <ArrowLeft size={18} />
         Back to canvas
       </button>
 
-      <h1 className="text-3xl font-bold mb-2">Profile</h1>
-      <p className="text-slate-400 mb-8">Manage your account and browse projects you own.</p>
+      {/* Header */}
+      <motion.div variants={fadeUp} initial="hidden" animate="show" className="mb-8 mt-2">
+        <h1 className="font-display text-4xl font-bold tracking-tight">Account</h1>
+      </motion.div>
 
-      {loading ? (
-        <div className="flex items-center gap-2 text-slate-400">
-          <Loader2 className="animate-spin" size={20} />
-          Loading…
-        </div>
-      ) : !profile ? (
-        <div className="rounded-xl border border-surface-border bg-surface-dark/40 p-6">
-          <h2 className="text-lg font-semibold mb-4">Create your profile</h2>
-          <p className="text-slate-400 text-sm mb-4">
-            Register once on this device. We store your user id in the browser and send it as{' '}
-            <code className="text-xs bg-black/30 px-1 rounded">X-User-Id</code> on API requests so
-            projects are associated with you.
-          </p>
-          <form onSubmit={handleRegister} className="space-y-4 max-w-md">
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Username</label>
-              <input
-                value={regUsername}
-                onChange={(e) => setRegUsername(e.target.value)}
-                className="w-full rounded-lg bg-background-dark border border-surface-border px-3 py-2 text-sm"
-                autoComplete="username"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Email</label>
-              <input
-                type="email"
-                value={regEmail}
-                onChange={(e) => setRegEmail(e.target.value)}
-                className="w-full rounded-lg bg-background-dark border border-surface-border px-3 py-2 text-sm"
-                autoComplete="email"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-lg bg-primary hover:bg-primary-hover px-4 py-2 text-sm font-semibold disabled:opacity-50"
-            >
-              {saving ? 'Saving…' : 'Create profile'}
-            </button>
-          </form>
-        </div>
-      ) : (
+      <div className="grid lg:grid-cols-3 gap-8 w-full">
+        {/* LEFT COLUMN */}
         <div className="space-y-8">
-          <div className="rounded-xl border border-surface-border bg-surface-dark/40 p-6">
-            <h2 className="text-lg font-semibold mb-4">Account</h2>
-            <form onSubmit={handleSaveProfile} className="space-y-4 max-w-md">
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Username</label>
-                <input
+
+          {/* Profile Overview Card */}
+          <motion.div variants={fadeUp} initial="hidden" animate="show">
+            <Paper 
+              elevation={0}
+              sx={{ 
+                p: { xs: 4, md: 5 }, 
+                borderRadius: 4, 
+                bgcolor: 'rgba(20, 25, 35, 0.9)', 
+                border: '1px solid rgba(255,255,255,0.08)',
+                textAlign: 'center',
+                color: 'white'
+              }}
+            >
+              <Avatar sx={{ width: 90, height: 90, margin: '0 auto', mb: 3, bgcolor: '#7c3aed', color: 'white', fontSize: '2.5rem', fontWeight: 'bold', fontFamily: 'Inter' }}>
+                {profile?.username?.[0]}
+              </Avatar>
+
+              <h2 className="font-display text-2xl font-bold mb-1">{profile?.username}</h2>
+              <p className="font-body text-text-secondary text-sm mb-4">
+                {profile?.email}
+              </p>
+
+              <Chip 
+                label="Pro Plan" 
+                size="small" 
+                sx={{ 
+                  mt: 2, 
+                  bgcolor: 'rgba(16, 185, 129, 0.15)', 
+                  color: '#10b981', 
+                  fontWeight: 'bold',
+                  fontFamily: 'Inter'
+                }} 
+              />
+            </Paper>
+          </motion.div>
+
+          {/* Subscription Card */}
+          <motion.div variants={fadeUp} initial="hidden" animate="show">
+            <Paper 
+              elevation={0}
+              sx={{ 
+                p: { xs: 4, md: 5 }, 
+                borderRadius: 4, 
+                bgcolor: 'rgba(20, 25, 35, 0.9)', 
+                border: '1px solid rgba(255,255,255,0.08)',
+                color: 'white'
+              }}
+            >
+              <div className="flex items-center gap-2 mb-6">
+                 <CreditCard size={22} className="text-primary" />
+                 <h2 className="font-display text-xl font-bold">Subscription</h2>
+              </div>
+
+              <div className="space-y-4 text-sm text-slate-400 mb-8 font-body">
+                <div className="flex justify-between items-center">
+                  <span>Plan</span>
+                  <span className="text-white font-medium">Pro</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Billing Cycle</span>
+                  <span className="text-white font-medium">Monthly</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Next Invoice</span>
+                  <span className="text-white font-medium">Nov 23, 2026</span>
+                </div>
+              </div>
+
+              <Button 
+                fullWidth 
+                variant="outlined" 
+                sx={{ 
+                  color: 'white', 
+                  borderColor: 'rgba(255,255,255,0.2)', 
+                  '&:hover': { borderColor: 'rgba(255,255,255,0.4)', bgcolor: 'rgba(255,255,255,0.05)' },
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontFamily: 'Inter',
+                  py: 1
+                }}
+              >
+                Manage Subscription
+              </Button>
+            </Paper>
+          </motion.div>
+        </div>
+
+        {/* RIGHT COLUMN */}
+        <div className="lg:col-span-2 space-y-8">
+
+          {/* Form Card */}
+          <motion.div variants={fadeUp} initial="hidden" animate="show">
+            <Paper 
+              elevation={0}
+              sx={{ 
+                p: { xs: 4, md: 6 }, 
+                borderRadius: 4, 
+                bgcolor: 'rgba(20, 25, 35, 0.9)', 
+                border: '1px solid rgba(255,255,255,0.08)',
+                color: 'white'
+              }}
+            >
+              <h2 className="font-display text-2xl font-bold mb-2">
+                Profile Details
+              </h2>
+              <p className="font-body text-text-secondary text-sm mb-8">
+                Update your personal information associated with your account.
+              </p>
+
+              <form onSubmit={handleSaveProfile} className="space-y-8">
+                <TextField
+                  fullWidth
+                  label="Username"
                   value={editUsername}
                   onChange={(e) => setEditUsername(e.target.value)}
-                  className="w-full rounded-lg bg-background-dark border border-surface-border px-3 py-2 text-sm"
-                  autoComplete="username"
+                  variant="outlined"
+                  sx={{ 
+                    fontFamily: 'Inter',
+                    '& .MuiOutlinedInput-root': { color: 'white', fontFamily: 'Inter', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' }, '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.3)' } }, 
+                    '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.7)', fontFamily: 'Inter' },
+                    '& .MuiInputLabel-root.Mui-focused': { color: '#a78bfa' }
+                  }}
                 />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Email</label>
-                <input
+
+                <TextField
+                  fullWidth
+                  label="Email Address"
                   type="email"
                   value={editEmail}
                   onChange={(e) => setEditEmail(e.target.value)}
-                  className="w-full rounded-lg bg-background-dark border border-surface-border px-3 py-2 text-sm"
-                  autoComplete="email"
+                  variant="outlined"
+                  sx={{ 
+                    fontFamily: 'Inter',
+                    '& .MuiOutlinedInput-root': { color: 'white', fontFamily: 'Inter', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' }, '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.3)' } }, 
+                    '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.7)', fontFamily: 'Inter' },
+                    '& .MuiInputLabel-root.Mui-focused': { color: '#a78bfa' }
+                  }}
                 />
-              </div>
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-lg bg-primary hover:bg-primary-hover px-4 py-2 text-sm font-semibold disabled:opacity-50"
-              >
-                {saving ? 'Saving…' : 'Save changes'}
-              </button>
-            </form>
-          </div>
 
-          <div className="rounded-xl border border-surface-border bg-surface-dark/40 p-6">
-            <h2 className="text-lg font-semibold mb-4">Your projects</h2>
-            {profile.projects.length === 0 ? (
-              <p className="text-slate-400 text-sm">No projects yet. Create one from the toolbar.</p>
-            ) : (
-              <ul className="divide-y divide-surface-border rounded-lg border border-surface-border overflow-hidden">
-                {profile.projects.map((p) => (
-                  <li
+                <Box display="flex" justifyContent="flex-start" pt={2}>
+                  <Button 
+                    type="submit" 
+                    disabled={saving} 
+                    variant="contained"
+                    sx={{ 
+                      bgcolor: '#7c3aed', 
+                      '&:hover': { bgcolor: '#6d28d9' }, 
+                      textTransform: 'none', 
+                      px: 5, 
+                      py: 1.5,
+                      fontWeight: 'bold',
+                      fontFamily: 'Inter',
+                      borderRadius: 2
+                    }}
+                  >
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </Box>
+              </form>
+            </Paper>
+          </motion.div>
+
+          {/* Projects Card */}
+          <motion.div variants={fadeUp} initial="hidden" animate="show">
+            <Paper 
+              elevation={0}
+              sx={{ 
+                p: { xs: 4, md: 6 }, 
+                borderRadius: 4, 
+                bgcolor: 'rgba(20, 25, 35, 0.9)', 
+                border: '1px solid rgba(255,255,255,0.08)',
+                color: 'white'
+              }}
+            >
+              <h2 className="font-display text-2xl font-bold mb-2">
+                Your Projects
+              </h2>
+              <p className="font-body text-text-secondary text-sm mb-8">
+                Manage and access your registered SnapLM architectures.
+              </p>
+
+              <div className="space-y-4">
+                {profile?.projects.map((p) => (
+                  <Box
                     key={p.project_id}
-                    className="flex items-center justify-between gap-4 px-4 py-3 bg-background-dark/50"
+                    sx={{
+                      p: 4,
+                      borderRadius: 3,
+                      bgcolor: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      display: 'flex',
+                      flexDirection: { xs: 'column', sm: 'row' },
+                      justifyContent: 'space-between',
+                      alignItems: { xs: 'flex-start', sm: 'center' },
+                      gap: 4,
+                      transition: 'all 0.2s ease',
+                      '&:hover': { bgcolor: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.1)' }
+                    }}
                   >
                     <div>
-                      <div className="font-medium">{p.name}</div>
-                      <div className="text-xs text-slate-500">
-                        {p.node_count} nodes · {new Date(p.created_at).toLocaleDateString()}
-                      </div>
+                      <h3 className="font-display font-bold text-lg mb-1 leading-tight">
+                        {p.name}
+                      </h3>
+                      <p className="font-body text-sm text-text-secondary">
+                        {p.node_count} nodes • Created {new Date(p.created_at).toLocaleDateString()}
+                      </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => void openProject(p.project_id)}
-                      className="shrink-0 rounded-lg border border-surface-border px-3 py-1.5 text-xs font-semibold hover:bg-white/5"
+
+                    <Button 
+                      onClick={() => openProject(p.project_id)}
+                      variant="contained"
+                      sx={{ 
+                        bgcolor: 'rgba(255,255,255,0.08)', 
+                        color: 'white', 
+                        boxShadow: 'none',
+                        '&:hover': { bgcolor: 'rgba(255,255,255,0.15)', boxShadow: 'none' },
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        fontFamily: 'Inter',
+                        px: 3,
+                        py: 1,
+                        borderRadius: 2
+                      }}
                     >
-                      Open
-                    </button>
-                  </li>
+                      Enter Workspace
+                    </Button>
+                  </Box>
                 ))}
-              </ul>
-            )}
-          </div>
+              </div>
+            </Paper>
+          </motion.div>
+
         </div>
-      )}
+      </div>
     </div>
   );
 };
 
 const ProfilePageRoute = () => {
   return (
-    <main className="flex-1 relative bg-background-dark overflow-hidden">
+    <main className="flex-1 flex flex-col relative bg-background-dark overflow-y-auto text-white">
       <ProfilePage />
     </main>
   );
