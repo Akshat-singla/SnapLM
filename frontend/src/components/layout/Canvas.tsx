@@ -59,14 +59,14 @@ const CanvasWrapper = () => {
         minZoom={0.1}
         maxZoom={2}
       >
-        <Background gap={24} size={2} color="#282e39" />
+        <Background gap={24} size={2} color="var(--color-surface-border)" />
         <Controls className="fill-white stroke-white text-black" />
         <MiniMap
           nodeColor={(n) => {
             if (n.style?.background) return n.style.background as string;
-            return '#282e39';
+            return 'var(--color-surface-border)';
           }}
-          maskColor="#111318"
+          maskColor="var(--color-bg-dark)"
           className="bg-surface-border"
         />
       </ReactFlow>

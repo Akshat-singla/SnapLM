@@ -41,9 +41,9 @@ const ProjectModal = () => {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50">
-      <div className="bg-white dark:bg-[#1a1d26] w-full max-w-md rounded-2xl shadow-2xl border border-gray-200 dark:border-[#282e39] overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-[#282e39]">
-          <h3 className="text-lg font-bold text-[#111318] dark:text-white flex items-center gap-2">
+      <div className="bg-white dark:bg-surface-dark w-full max-w-md rounded-2xl shadow-2xl border border-gray-200 dark:border-surface-border overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-surface-border">
+          <h3 className="text-lg font-bold text-text-heading dark:text-white flex items-center gap-2">
             <FolderPlus className="text-primary" size={20} />
             Create New Project
           </h3>
@@ -61,7 +61,7 @@ const ProjectModal = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="My Awesome Project"
-              className="w-full bg-transparent border border-gray-200 dark:border-[#282e39] rounded-lg px-4 py-2 text-[#111318] dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+              className="w-full bg-transparent border border-gray-200 dark:border-surface-border rounded-lg px-4 py-2 text-text-heading dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
             />
           </div>
 
@@ -72,7 +72,7 @@ const ProjectModal = () => {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What is this project about?"
               rows={3}
-              className="w-full bg-transparent border border-gray-200 dark:border-[#282e39] rounded-lg px-4 py-2 text-[#111318] dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none"
+              className="w-full bg-transparent border border-gray-200 dark:border-surface-border rounded-lg px-4 py-2 text-text-heading dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none"
             />
           </div>
 
@@ -92,7 +92,7 @@ const ProjectModal = () => {
             <button
               onClick={handleCreate}
               disabled={!name.trim() || isSubmitting}
-              className="px-4 py-2 rounded-lg text-sm font-bold bg-primary hover:bg-blue-600 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              className="px-4 py-2 rounded-lg text-sm font-bold bg-primary hover:bg-primary-hover text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
               {isSubmitting ? 'Creating...' : <><FolderPlus size={16} /> Create Project</>}
             </button>

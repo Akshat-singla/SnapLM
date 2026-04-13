@@ -53,7 +53,7 @@ const Sidebar = () => {
             <Search size={20} />
           </div>
           <input
-            className="block w-full rounded-lg border-none bg-surface-border py-2 pl-10 pr-3 text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-primary focus:bg-[#1f242e] transition-all"
+            className="block w-full rounded-lg border-none bg-surface-border py-2 pl-10 pr-3 text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-primary focus:bg-surface-focus transition-all"
             placeholder="Search nodes..."
             type="text"
             value={searchTerm}
@@ -131,7 +131,7 @@ const Sidebar = () => {
                           e.stopPropagation();
                           await unarchiveProject(project.project_id);
                         }}
-                        className="text-xs text-primary hover:text-blue-400 transition-colors"
+                        className="text-xs text-primary hover:text-primary-hover transition-colors"
                         title="Move back to active projects"
                       >
                         Restore

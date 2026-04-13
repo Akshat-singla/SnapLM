@@ -108,7 +108,7 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
         <div
           className="h-32 bg-cover bg-center relative"
           style={{
-            backgroundImage: 'linear-gradient(180deg, rgba(19, 91, 236, 0.3) 0%, rgba(17, 19, 24, 0.9) 50%, #111318 100%), radial-gradient(circle at 30% 20%, rgba(19, 91, 236, 0.4) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(76, 201, 240, 0.2) 0%, transparent 40%)'
+            backgroundImage: 'linear-gradient(180deg, rgba(19, 91, 236, 0.3) 0%, rgba(17, 19, 24, 0.9) 50%, var(--color-bg-dark) 100%), radial-gradient(circle at 30% 20%, rgba(19, 91, 236, 0.4) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(76, 201, 240, 0.2) 0%, transparent 40%)'
           }}
         >
           <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1 text-[10px] text-white font-mono border border-white/10">ROOT</div>
@@ -118,7 +118,7 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
         <div className="flex items-center justify-between p-4 pb-2">
           <div className={clsx(
             "text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1",
-            isActive ? "bg-primary/20 text-primary" : "bg-slate-700 text-slate-400"
+            isActive ? "bg-primary/20 text-primary" : "bg-surface-muted text-slate-400"
           )}>
             {isFrozen && <Lock size={10} />}
             {data.status}
@@ -149,7 +149,7 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
         {isRoot && (
           <div className="flex items-center justify-between">
             <div className="flex -space-x-2">
-              <div className="w-6 h-6 rounded-full bg-slate-700 border border-background-dark flex items-center justify-center text-xs text-white">
+              <div className="w-6 h-6 rounded-full bg-surface-muted border border-background-dark flex items-center justify-center text-xs text-white">
                 A
               </div>
               <div className="w-6 h-6 rounded-full bg-primary border border-background-dark flex items-center justify-center text-xs text-white">
@@ -158,7 +158,7 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
             </div>
             <div className="flex items-center gap-2">
               {data.isReadOnly && (
-                <span className="text-[10px] text-slate-400 bg-slate-700/50 px-2 py-0.5 rounded">Read-only</span>
+                <span className="text-[10px] text-slate-400 bg-surface-muted/50 px-2 py-0.5 rounded">Read-only</span>
               )}
               <button
                 type="button"
@@ -174,7 +174,7 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
           <div className="flex gap-2 mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               type="button"
-              className="flex-1 bg-primary hover:bg-blue-600 text-white text-xs font-bold py-1.5 rounded transition-colors"
+              className="flex-1 bg-primary hover:bg-primary-hover text-white text-xs font-bold py-1.5 rounded transition-colors"
               onClick={handleExpand}
             >
               Expand
@@ -183,7 +183,7 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
               <>
                 <button
                   type="button"
-                  className="flex-1 bg-surface-border hover:bg-gray-700 text-white text-xs font-bold py-1.5 rounded transition-colors"
+                  className="flex-1 bg-surface-border hover:bg-surface-hover text-white text-xs font-bold py-1.5 rounded transition-colors"
                   onClick={handleBranch}
                 >
                   Branch

@@ -1,11 +1,4 @@
-type NavigateFn = (path: string) => void;
-
-let impl: NavigateFn | null = null;
-
-export function registerSpaNavigation(fn: NavigateFn | null) {
-  impl = fn;
-}
-
-export function spaNavigate(path: string) {
-  impl?.(path);
-}
+// DEPRECATED: This custom routing utility has been replaced by react-router-dom.
+// You can safely delete this file.
+export function spaNavigate() {}
+export function registerSpaNavigation() {}

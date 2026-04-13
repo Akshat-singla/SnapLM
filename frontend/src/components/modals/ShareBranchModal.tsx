@@ -95,7 +95,7 @@ const ShareBranchModal = ({ open, onClose }: ShareBranchModalProps) => {
             <button
               type="submit"
               disabled={submitting || !sharedWith.trim() || !selectedNodeId || !currentProjectId}
-              className="rounded-lg bg-primary hover:bg-blue-600 px-4 py-2 text-sm font-semibold disabled:opacity-50"
+              className="rounded-lg bg-primary hover:bg-primary-hover px-4 py-2 text-sm font-semibold disabled:opacity-50"
             >
               {submitting ? 'Sharing…' : 'Create share link'}
             </button>

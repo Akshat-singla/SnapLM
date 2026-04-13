@@ -6,11 +6,12 @@ import {
   type UserProfile,
 } from '../../services/api/client';
 import useStore from '../../store';
-import { spaNavigate } from '../../utils/spaNavigation';
+import { useNavigate } from 'react-router-dom';
 
 const ProfilePage = () => {
   const { addToast, setCurrentProject, fetchProjects } = useStore();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -87,7 +88,7 @@ const ProfilePage = () => {
   };
 
   const openProject = async (projectId: string) => {
-    spaNavigate('/');
+    navigate('/app');
     await setCurrentProject(projectId);
   };
 
@@ -95,7 +96,7 @@ const ProfilePage = () => {
     <div className="flex flex-col h-full w-full overflow-auto bg-background-dark text-white p-8 max-w-3xl mx-auto">
       <button
         type="button"
-        onClick={() => spaNavigate('/')}
+        onClick={() => navigate('/app')}
         className="flex items-center gap-2 text-slate-400 hover:text-white text-sm mb-8 w-fit"
       >
         <ArrowLeft size={18} />
@@ -141,7 +142,7 @@ const ProfilePage = () => {
             <button
               type="submit"
               disabled={saving}
-              className="rounded-lg bg-primary hover:bg-blue-600 px-4 py-2 text-sm font-semibold disabled:opacity-50"
+              className="rounded-lg bg-primary hover:bg-primary-hover px-4 py-2 text-sm font-semibold disabled:opacity-50"
             >
               {saving ? 'Saving…' : 'Create profile'}
             </button>
@@ -174,7 +175,7 @@ const ProfilePage = () => {
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-lg bg-primary hover:bg-blue-600 px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                className="rounded-lg bg-primary hover:bg-primary-hover px-4 py-2 text-sm font-semibold disabled:opacity-50"
               >
                 {saving ? 'Saving…' : 'Save changes'}
               </button>
