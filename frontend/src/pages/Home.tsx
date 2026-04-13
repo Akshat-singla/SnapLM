@@ -4,6 +4,7 @@ import StickyUpdate from "../components/landing/StickyUpdate";
 import StaggeredText from "../components/animated/StaggeredText";
 import TerminalMockup from "../components/landing/TerminalMockup";
 import HowItWorks from "../components/landing/HowItWorks";
+import Header from "../components/landing/Header";
 
 // Animation Variants
 const containerVariants = {
@@ -25,31 +26,7 @@ export default function HomePage() {
             <StickyUpdate />
 
             {/* Navbar */}
-            <header className="sticky top-0 z-50 backdrop-blur-md bg-background-dark/80 border-b border-white/5">
-                <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2 group cursor-pointer">
-                        <div className="bg-primary/10 p-2 rounded-lg group-hover:scale-110 transition-transform">
-                            <GanttChart className="text-primary" size={22} />
-                        </div>
-                        <span className="font-display text-xl font-bold tracking-tight">SnapLM</span>
-                    </div>
-
-                    <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
-                        {["Features", "Pricing", "Docs", "Changelog"].map((item) => (
-                            <button key={item} className="text-text-secondary hover:text-white transition-colors">
-                                {item}
-                            </button>
-                        ))}
-                    </nav>
-
-                    <div className="flex items-center gap-4">
-                        <button className="hidden sm:block text-sm font-medium hover:text-primary transition">Log in</button>
-                        <button className="bg-white text-black hover:bg-primary hover:text-white px-5 py-2.5 rounded-full text-sm font-bold flex items-center gap-2 transition-all active:scale-95">
-                            Get Started <ArrowRight size={16} />
-                        </button>
-                    </div>
-                </div>
-            </header>
+            <Header />
 
             {/* Hero Section */}
             <section className="relative pt-20 pb-32">

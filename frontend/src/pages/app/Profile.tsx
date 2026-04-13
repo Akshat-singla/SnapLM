@@ -217,4 +217,12 @@ const ProfilePage = () => {
   );
 };
 
-export default ProfilePage;
+const ProfilePageRoute = () => {
+  return (
+    <main className="flex-1 relative bg-background-dark overflow-hidden">
+      <ProfilePage />
+    </main>
+  );
+};
+
+export default ProfilePageRoute;

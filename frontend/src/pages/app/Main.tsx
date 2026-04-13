@@ -1,9 +1,9 @@
-import Sidebar from '../components/layout/Sidebar';
-import CanvasWrapper from '../components/layout/Canvas';
-import ChatPanel from '../components/chat/ChatPanel';
-import BranchModal from '../components/modals/BranchModal';
-import MergeModal from '../components/modals/MergeModal';
-import useStore from '../store';
+import Sidebar from '../../components/layout/Sidebar';
+import CanvasWrapper from '../../components/layout/Canvas';
+import ChatPanel from '../../components/chat/ChatPanel';
+import BranchModal from '../../components/modals/BranchModal';
+import MergeModal from '../../components/modals/MergeModal';
+import useStore from '../../store';
 
 /**
  * Home / Canvas page — the main workspace view.
