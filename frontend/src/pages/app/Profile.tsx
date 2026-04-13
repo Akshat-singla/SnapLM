@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { startRegistration } from '@simplewebauthn/browser';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Loader2, CreditCard, LogOut, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -40,7 +41,10 @@ const ProfilePage = () => {
   const [setupSecret, setSetupSecret] = useState('');
   const [verifyCode, setVerifyCode] = useState('');
   const [is2faEnabled, setIs2faEnabled] = useState(false);
-  
+  // Passkeys State
+  const [passkeysModalOpen, setPasskeysModalOpen] = useState(false);
+  const [passkeysList, setPasskeysList] = useState<any[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const addToast = useStore(state => state.addToast);
@@ -107,6 +111,46 @@ const ProfilePage = () => {
       checkAuth();
     } catch (err) {
       addToast({ type: 'error', message: 'Invalid 2FA code' });
+    }
+  };
+
+  const loadPasskeys = async () => {
+    try {
+        const list = await authApi.getPasskeyCredentials();
+        setPasskeysList(list);
+    } catch {
+        addToast({ type: 'error', message: 'Failed to fully load passkeys' });
+    }
+  };
+
+  const handleManagePasskeys = async () => {
+    await loadPasskeys();
+    setPasskeysModalOpen(true);
+  };
+
+  const handleRegisterPasskey = async () => {
+    try {
+        const generateResp = await authApi.generatePasskeyRegistration();
+        const attResp = await startRegistration(generateResp);
+        await authApi.verifyPasskeyRegistration(attResp);
+        addToast({ type: 'success', message: 'Passkey registered successfully!' });
+        await loadPasskeys();
+    } catch (err: any) {
+        if (err.name === 'NotAllowedError') {
+            addToast({ type: 'info', message: 'Passkey registration cancelled' });
+        } else {
+            addToast({ type: 'error', message: 'Failed to register passkey' });
+        }
+    }
+  };
+
+  const handleDeletePasskey = async (id: string) => {
+    try {
+        await authApi.deletePasskeyCredential(id);
+        addToast({ type: 'success', message: 'Passkey deleted' });
+        await loadPasskeys();
+    } catch {
+        addToast({ type: 'error', message: 'Failed to delete passkey' });
     }
   };
 
@@ -373,6 +417,7 @@ const ProfilePage = () => {
                   </div>
                   <Button 
                     variant="outlined" 
+                    onClick={handleManagePasskeys}
                     sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.2)', textTransform: 'none', fontWeight: 'bold' }}
                   >
                     Manage Passkeys
@@ -542,6 +587,63 @@ const ProfilePage = () => {
         <DialogActions sx={{ p: 3, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
           <Button onClick={() => setSetupModalOpen(false)} sx={{ color: 'white' }}>Cancel</Button>
           <Button onClick={handleVerifySetup2FA} variant="contained" sx={{ bgcolor: 'var(--color-primary)' }}>Verify</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Passkeys Modal */}
+      <Dialog 
+        open={passkeysModalOpen} 
+        onClose={() => setPasskeysModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          style: { backgroundColor: 'var(--color-surface-elevated)', color: 'white' }
+        }}
+      >
+        <DialogTitle sx={{ fontFamily: 'Inter', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+            Manage Passkeys
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+            <p className="text-sm text-slate-300 mb-6">
+                Passkeys offer completely passwordless logins using your device biometric data (FaceID, TouchID, Windows Hello, or USB keys).
+            </p>
+
+            <div className="space-y-3 mb-6">
+                {passkeysList.map(pk => (
+                    <div key={pk.id} className="p-4 rounded-xl border border-white/10 bg-white/5 flex justify-between items-center">
+                        <div>
+                            <h4 className="font-bold text-sm">Passkey</h4>
+                            <p className="text-xs text-text-secondary">Added {new Date(pk.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <Button 
+                            color="error" 
+                            size="small" 
+                            variant="outlined"
+                            onClick={() => handleDeletePasskey(pk.id)}
+                            sx={{ textTransform: 'none', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                ))}
+                {passkeysList.length === 0 && (
+                    <div className="p-6 text-center rounded-xl border border-white/5 bg-background-dark/50 text-text-muted text-sm">
+                        No passkeys registered yet.
+                    </div>
+                )}
+            </div>
+
+            <Button 
+                variant="contained"
+                onClick={handleRegisterPasskey}
+                fullWidth
+                sx={{ py: 1.5, bgcolor: 'var(--color-primary)', fontWeight: 'bold', textTransform: 'none', borderRadius: 2 }}
+            >
+                Register New Passkey
+            </Button>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <Button onClick={() => setPasskeysModalOpen(false)} sx={{ color: 'white' }}>Close</Button>
         </DialogActions>
       </Dialog>
     </div>

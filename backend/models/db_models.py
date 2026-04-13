@@ -27,10 +27,25 @@ class User(Base):
     password_hash = Column(String, nullable=True) # Temporarily nullable to avoid issues with existing users if any
     is_2fa_enabled = Column(Boolean, default=False, server_default="false", nullable=False)
     totp_secret = Column(String(32), nullable=True)
+    webauthn_challenge = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     projects = relationship("Project", back_populates="owner")
+    passkeys = relationship("PasskeyCredential", back_populates="user", cascade="all, delete-orphan")
+
+class PasskeyCredential(Base):
+    __tablename__ = "passkey_credentials"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    credential_id = Column(String, nullable=False, unique=True, index=True) # Base64URL encoded credential ID
+    public_key = Column(String, nullable=False) # Base64URL encoded public key
+    sign_count = Column(Integer, default=0, nullable=False)
+    name = Column(String(100), nullable=True) # E.g., 'MacBook Pro Touch ID'
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="passkeys")
 
 
 class Project(Base):

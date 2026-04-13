@@ -4,6 +4,8 @@ import { Eye, EyeOff, Loader2, Mail, Lock, Smartphone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useRobot } from "../../context/robotProvider";
 import useStore from "../../store";
+import { authApi } from "../../services/api/client";
+import { startAuthentication } from '@simplewebauthn/browser';
 
 export default function Login() {
     const [email, setEmail] = useState("");
@@ -35,6 +37,44 @@ export default function Login() {
             setState("error");
         }
         setLoading(false);
+    };
+
+    // Passkey Login implementation
+    const handlePasskeyLogin = async () => {
+        setLoading(true);
+        setState("thinking");
+
+        try {
+            // If email is empty, we do "Discoverable Credentials" (Resident Keys)
+            const queryEmail = email || null;
+            
+            const generateResp = await authApi.generatePasskeyAuthentication(queryEmail || "");
+            const asseResp = await startAuthentication(generateResp);
+            const verifyResp = await authApi.verifyPasskeyAuthentication(queryEmail || "", asseResp);
+            
+            if (verifyResp.success) {
+                // If user didn't enter email, we might want to update the local state with what the backend found
+                if (!email && verifyResp.user?.email) {
+                    setEmail(verifyResp.user.email);
+                }
+                
+                useStore.getState().checkAuth(); // update store
+                setState("success");
+                setTimeout(() => navigate("/app"), 1000);
+            }
+        } catch (err: any) {
+            console.error("Passkey Error:", err);
+            setState("error");
+            if (err.name === "NotAllowedError") {
+                // User cancelled or timed out
+                setState("login");
+            }
+        } finally {
+            setLoading(false);
+            if (useStore.getState().user === null && !loading) {
+               // Stay in login if not successful
+            }
+        }
     };
 
     // Animation Variants
@@ -151,8 +191,9 @@ export default function Login() {
             <motion.div variants={itemVariants} className="text-center">
                 <button
                     type="button"
-                    onClick={() => navigate("/auth/passkey")}
-                    className="text-xs font-bold text-text-muted hover:text-white uppercase tracking-widest transition-colors flex items-center justify-center mx-auto"
+                    onClick={handlePasskeyLogin}
+                    disabled={loading}
+                    className="text-xs font-bold text-text-muted hover:text-white uppercase tracking-widest transition-colors flex items-center justify-center mx-auto disabled:opacity-50"
                 >
                     Sign in with Passkey
                 </button>

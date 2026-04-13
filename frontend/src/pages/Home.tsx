@@ -1,5 +1,7 @@
 import { motion, type Variants } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import useStore from "../store";
 import { Sparkles, Zap, Brain, ArrowRight, GanttChart, Code2, ShieldCheck, Globe } from "lucide-react";
 import StickyUpdate from "../components/landing/StickyUpdate";
 import StaggeredText from "../components/animated/StaggeredText";
@@ -23,6 +25,15 @@ const itemVariants: Variants = {
 };
 
 export default function HomePage() {
+    const navigate = useNavigate();
+    const user = useStore(state => state.user);
+
+    useEffect(() => {
+        if (user) {
+            navigate("/app");
+        }
+    }, [user, navigate]);
+
     return (
         <div className="bg-background-dark text-white font-body min-h-screen selection:bg-primary/30">
             <StickyUpdate />

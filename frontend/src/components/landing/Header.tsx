@@ -1,6 +1,7 @@
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Link } from "react-router-dom";
 import { GanttChart, ArrowRight } from "lucide-react";
+import useStore from "../../store";
 
 export default function Header({ minimal = false }: { minimal?: boolean }) {
     const { scrollY } = useScroll();
@@ -20,6 +21,9 @@ export default function Header({ minimal = false }: { minimal?: boolean }) {
         { name: "Changelog", path: "/changelog" }
     ];
 
+    const user = useStore(state => state.user);
+    const logoLink = user ? "/app" : "/";
+
     return (
         <motion.header
             style={{ backgroundColor, borderColor: borderOpacity }}
@@ -35,7 +39,7 @@ export default function Header({ minimal = false }: { minimal?: boolean }) {
                     whileHover="hover"
                     className="flex items-center gap-2 cursor-pointer group"
                 >
-                    <Link to="/" className="flex items-center gap-2">
+                    <Link to={logoLink} className="flex items-center gap-2">
                         <motion.div
                             variants={{
                                 hover: { scale: 1.1, rotate: 5 }

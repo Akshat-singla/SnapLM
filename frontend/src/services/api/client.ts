@@ -375,6 +375,40 @@ export const authApi = {
   disable2FA: async (): Promise<{ message: string }> => {
     const response = await api.post('/auth/2fa/disable');
     return response.data;
+  },
+
+  // Passkeys
+  generatePasskeyRegistration: async (): Promise<any> => {
+    const response = await api.get('/auth/passkeys/register/generate');
+    return response.data;
+  },
+  
+  verifyPasskeyRegistration: async (credential: any): Promise<any> => {
+    const response = await api.post('/auth/passkeys/register/verify', credential);
+    return response.data;
+  },
+  
+  getPasskeyCredentials: async (): Promise<any[]> => {
+    const response = await api.get('/auth/passkeys/credentials');
+    return response.data;
+  },
+  
+  deletePasskeyCredential: async (id: string): Promise<any> => {
+    const response = await api.delete(`/auth/passkeys/credentials/${id}`);
+    return response.data;
+  },
+
+  generatePasskeyAuthentication: async (email: string): Promise<any> => {
+    const response = await api.post('/auth/passkeys/authenticate/generate', { email });
+    return response.data;
+  },
+
+  verifyPasskeyAuthentication: async (email: string, credential: any): Promise<any> => {
+    const response = await api.post('/auth/passkeys/authenticate/verify', { email, credential });
+    if (response.data.token) {
+      localStorage.setItem(AUTH_TOKEN_KEY, response.data.token);
+    }
+    return response.data;
   }
 };
 
