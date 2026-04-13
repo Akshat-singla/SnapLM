@@ -145,11 +145,11 @@ const ChatPanel = () => {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ duration: 0.2, ease: 'easeOut' }}
-        className="absolute inset-0 flex items-center justify-center p-4 sm:p-8 backdrop-blur-[2px] z-50"
+        className="absolute inset-0 flex items-center justify-center p-4 sm:p-8 backdrop-blur-md z-[100]"
       >
-        <div className="flex flex-col w-full max-w-[1000px] h-full max-h-[85vh] bg-white dark:bg-panel-dark rounded-2xl shadow-2xl border border-gray-200 dark:border-surface-border overflow-hidden relative">
-          <div className="flex flex-col border-b border-gray-200 dark:border-surface-border bg-gray-50/80 dark:bg-panel-header/80 backdrop-blur-md z-10">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-surface-border/50">
+        <div className="flex flex-col w-full max-w-[1000px] h-full max-h-[85vh] bg-background-dark/95 backdrop-blur-xl rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/10 overflow-hidden relative">
+          <div className="flex flex-col border-b border-white/10 bg-panel-header/80 backdrop-blur-md z-10">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <div className="flex flex-wrap items-center gap-2">
                 <CornerUpLeft size={16} className="text-slate-400" />
                 {[...ancestors].reverse().map((ancestor) => (
@@ -158,7 +158,7 @@ const ChatPanel = () => {
                     <span className="text-slate-400 text-sm">/</span>
                   </span>
                 ))}
-                <span className="text-text-heading dark:text-white text-sm font-bold bg-primary/10 px-2 py-0.5 rounded text-primary">
+                  <span className="text-white text-sm font-bold bg-primary/20 px-2 py-0.5 rounded text-primary">
                   {node.data.title}
                 </span>
               </div>
@@ -190,19 +190,19 @@ const ChatPanel = () => {
               </div>
             </div>
 
-            <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white dark:from-panel-header dark:to-panel-dark">
-              <div className="flex items-start gap-4 p-4 rounded-xl border border-gray-200 dark:border-surface-border bg-white dark:bg-surface-elevated shadow-sm">
+            <div className="px-6 py-4 bg-gradient-to-r from-panel-header to-background-dark">
+              <div className="flex items-start gap-4 p-4 rounded-xl border border-white/10 bg-surface-elevated shadow-sm">
                 <div className="p-2 bg-primary/10 rounded-lg text-primary shrink-0">
                   <History size={20} />
                 </div>
                 <div className="flex flex-col gap-1 flex-1">
                   <div className="flex items-center justify-between">
-                    <p className="text-text-heading dark:text-white text-sm font-bold uppercase tracking-wide">Lineage Context</p>
-                    <span className="text-xs text-slate-400 bg-gray-100 dark:bg-surface-border px-2 py-1 rounded">
+                    <p className="text-white text-sm font-bold uppercase tracking-wide">Lineage Context</p>
+                    <span className="text-xs text-text-muted bg-surface-border px-2 py-1 rounded">
                       {ancestors.length} Parent Node{ancestors.length !== 1 ? 's' : ''}
                     </span>
                   </div>
-                  <p className="text-text-muted-light dark:text-text-muted text-sm font-normal leading-relaxed text-left">
+                  <p className="text-text-muted text-sm font-normal leading-relaxed text-left">
                     {ancestors.length > 0 ? (
                       <>
                         This node inherits context from{' '}
@@ -226,9 +226,9 @@ const ChatPanel = () => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 bg-white dark:bg-panel-dark">
+          <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 bg-background-dark">
             <div className="flex justify-center">
-              <span className="text-xs font-medium text-slate-400 px-3 py-1 rounded-full border border-gray-200 dark:border-surface-border bg-gray-50 dark:bg-surface-elevated">
+              <span className="text-xs font-medium text-text-muted px-3 py-1 rounded-full border border-white/10 bg-surface-elevated">
                 Today, 10:23 AM
               </span>
             </div>
@@ -254,11 +254,11 @@ const ChatPanel = () => {
                 <div className={`flex flex-col gap-1 max-w-[70%] ${msg.role === 'user' ? 'items-end' : ''}`}>
                   {msg.role !== 'user' && (
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-text-heading dark:text-white">Fractal AI</span>
+                      <span className="text-sm font-bold text-white">Fractal AI</span>
                     </div>
                   )}
                   <div
-                    className={`p-4 rounded-2xl shadow-md text-left ${msg.role === 'user' ? 'rounded-tr-sm bg-primary text-white' : 'rounded-tl-none bg-gray-100 dark:bg-surface-elevated text-text-heading dark:text-text-secondary'}`}
+                    className={`p-4 rounded-2xl shadow-md text-left ${msg.role === 'user' ? 'rounded-tr-sm bg-primary text-white' : 'rounded-tl-none bg-surface-elevated text-text-secondary'}`}
                   >
                     {msg.role === 'user' ? (
                       <div>
@@ -288,28 +288,28 @@ const ChatPanel = () => {
           </div>
 
           {isReadOnly ? (
-            <div className="p-4 bg-white dark:bg-panel-dark border-t border-gray-200 dark:border-surface-border text-center text-sm text-slate-400">
+            <div className="p-4 bg-background-dark border-t border-white/10 text-center text-sm text-text-muted">
               This is a shared read-only workspace. You cannot send messages.
             </div>
           ) : (
-            <div className="p-4 bg-white dark:bg-panel-dark border-t border-gray-200 dark:border-surface-border">
+            <div className="p-4 bg-background-dark border-t border-white/10">
               {imagePreview && (
                 <div className="relative inline-block mb-2 ml-1">
                   <img
                     src={imagePreview}
                     alt="preview"
-                    className="h-16 w-16 object-cover rounded-lg border border-gray-200 dark:border-surface-border"
+                    className="h-16 w-16 object-cover rounded-lg border border-white/10 shadow-lg"
                   />
                   <button
                     type="button"
                     onClick={clearImage}
-                    className="absolute -top-1.5 -right-1.5 text-slate-400 hover:text-red-400 transition-colors"
+                    className="absolute -top-1.5 -right-1.5 text-text-muted hover:text-red-400 transition-colors"
                   >
                     <XCircle size={16} />
                   </button>
                 </div>
               )}
-              <div className="relative flex items-end gap-2 bg-gray-50 dark:bg-surface-elevated border border-gray-200 dark:border-surface-border rounded-xl p-2 shadow-sm focus-within:ring-1 focus-within:ring-primary focus-within:border-primary transition-all">
+              <div className="relative flex items-end gap-2 bg-surface-elevated border border-white/10 rounded-xl p-2 shadow-sm focus-within:ring-1 focus-within:ring-primary focus-within:border-primary transition-all">
                 <button
                   type="button"
                   className="p-2 text-slate-400 hover:text-primary rounded-lg transition-colors self-end mb-0.5"

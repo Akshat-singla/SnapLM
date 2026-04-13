@@ -170,11 +170,15 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
             </div>
           </div>
         )}
-        {isActive && (
-          <div className="flex gap-2 mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Action Buttons */}
+        {(isActive || isFrozen) && (
+          <div className={clsx(
+            "flex gap-2 mt-4 transition-all duration-300",
+            (selected || isDimmed === false) ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          )}>
             <button
               type="button"
-              className="flex-1 bg-primary hover:bg-primary-hover text-white text-xs font-bold py-1.5 rounded transition-colors"
+              className="flex-1 bg-primary hover:bg-primary-hover text-white text-[10px] font-bold py-1.5 rounded transition-colors"
               onClick={handleExpand}
             >
               Expand
@@ -183,25 +187,29 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
               <>
                 <button
                   type="button"
-                  className="flex-1 bg-surface-border hover:bg-surface-hover text-white text-xs font-bold py-1.5 rounded transition-colors"
+                  className="flex-1 bg-surface-border hover:bg-surface-hover text-white text-[10px] font-bold py-1.5 rounded transition-colors"
                   onClick={handleBranch}
                 >
                   Branch
                 </button>
-                <button
-                  type="button"
-                  className="flex-1 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 text-xs font-bold py-1.5 rounded transition-colors"
-                  onClick={handleMerge}
-                >
-                  Merge
-                </button>
-                <button
-                  type="button"
-                  className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-bold py-1.5 rounded transition-colors"
-                  onClick={handleDelete}
-                >
-                  Delete
-                </button>
+                {isActive && (
+                  <>
+                    <button
+                      type="button"
+                      className="flex-1 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 text-[10px] font-bold py-1.5 rounded transition-colors"
+                      onClick={handleMerge}
+                    >
+                      Merge
+                    </button>
+                    <button
+                      type="button"
+                      className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-[10px] font-bold py-1.5 rounded transition-colors"
+                      onClick={handleDelete}
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
               </>
             )}
           </div>

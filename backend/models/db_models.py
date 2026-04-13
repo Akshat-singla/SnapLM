@@ -102,8 +102,9 @@ class Node(Base):
     messages = relationship(
         "Message", back_populates="node", cascade="all, delete-orphan"
     )
-    summaries = relationship("NodeSummary", back_populates="node")
-    events = relationship("NodeEvent", back_populates="node")
+    summaries = relationship("NodeSummary", back_populates="node", cascade="all, delete-orphan")
+    events = relationship("NodeEvent", back_populates="node", cascade="all, delete-orphan")
+    kg_entries = relationship("KnowledgeGraph", back_populates="node", cascade="all, delete-orphan")
 
 
 class NodeEvent(Base):
@@ -207,7 +208,7 @@ class KnowledgeGraph(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     deleted_at = Column(DateTime(timezone=True), nullable=True)
 
-    node = relationship("Node")
+    node = relationship("Node", back_populates="kg_entries")
 
     __table_args__ = (
         UniqueConstraint(

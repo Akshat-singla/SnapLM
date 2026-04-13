@@ -409,6 +409,10 @@ export const authApi = {
       localStorage.setItem(AUTH_TOKEN_KEY, response.data.token);
     }
     return response.data;
+  },
+
+  deleteAccount: async (): Promise<void> => {
+    await api.delete('/auth/me');
   }
 };
 

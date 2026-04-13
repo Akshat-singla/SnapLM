@@ -186,6 +186,7 @@ async def create_node_route(
     }
 
     node = await create_node(db, node_data)
+    await db.flush()
 
     await record_event(
         db,
@@ -223,6 +224,8 @@ async def create_node_route(
         except Exception as e:
             logger.error(f"Initial message LLM call failed: {e}")
 
+    await db.commit()
+    await db.refresh(node)
     return _node_response(node)
 
 
@@ -369,6 +372,8 @@ async def send_message(
         {"user_tokens": user_msg.token_count, "reply_tokens": assistant_msg.token_count},
     )
 
+    await db.commit()
+    await db.refresh(assistant_msg)
     return _msg_response(assistant_msg, agent_used=agent_used, fallback_from=fallback_from)
 
 
@@ -395,6 +400,7 @@ async def summarize_node(node_id: uuid.UUID, db: AsyncSession = Depends(get_db))
         summary_dict = {"raw": raw_summary}
 
     saved = await create_summary(db, node_id, summary_dict)
+    await db.flush()
 
     await record_event(db, node_id, "node_summarized", {"summary_id": str(saved.summary_id)})
 
@@ -422,6 +428,8 @@ async def summarize_node(node_id: uuid.UUID, db: AsyncSession = Depends(get_db))
         graph_status = "failed"
         graph_error = str(e)
 
+    await db.commit()
+    await db.refresh(saved)
     return SummarizeResponse(
         summary_id=saved.summary_id,
         node_id=node_id,
@@ -470,6 +478,7 @@ async def delete_node(
         await soft_delete_edges(db, node_id)
         await update_node_status(db, node_id, "deleted")
 
+    await db.commit()
     edges_removed = len(affected_ids) + 1  # approximate
 
     return DeleteResponse(
@@ -524,6 +533,8 @@ async def copy_node(
         {"copied_from": str(node_id)},
     )
 
+    await db.commit()
+    await db.refresh(new_node)
     return _node_response(new_node)
 
 

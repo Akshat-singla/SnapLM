@@ -10,8 +10,6 @@ from sqlalchemy.orm import selectinload
 async def create_node(session: AsyncSession, node_data: dict) -> Node:
     node = Node(**node_data)
     session.add(node)
-    await session.commit()
-    await session.refresh(node)
     return node
 
 
@@ -31,7 +29,25 @@ async def update_node_status(session: AsyncSession, node_id: uuid.UUID, status: 
     await session.execute(
         update(Node).where(Node.node_id == node_id).values(status=status)
     )
-    await session.commit()
+
+
+async def create_message(
+    session: AsyncSession,
+    node_id: uuid.UUID,
+    role: str,
+    content: str,
+    token_count: int = None,
+    metadata: dict = None,
+) -> Message:
+    msg = Message(
+        node_id=node_id,
+        role=role,
+        content=content,
+        token_count=token_count,
+        metadata_=metadata or {},
+    )
+    session.add(msg)
+    return msg
 
 
 async def get_node_lineage(session: AsyncSession, node_id: uuid.UUID) -> list[Node]:

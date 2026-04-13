@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import Sidebar from '../..//components/layout/Sidebar';
+import Sidebar from '../../components/layout/Sidebar';
 import CanvasWrapper from '../../components/layout/Canvas';
 import ChatPanel from '../../components/chat/ChatPanel';
 import useStore from '../../store';

@@ -23,8 +23,6 @@ async def create_user(
 ) -> User:
     user = User(username=username, email=email)
     session.add(user)
-    await session.commit()
-    await session.refresh(user)
     return user
 
 
@@ -40,8 +38,6 @@ async def update_user(
         user.username = username
     if email is not None:
         user.email = email
-    await session.commit()
-    await session.refresh(user)
     return user
 
 

@@ -82,9 +82,9 @@ const BranchModal = () => {
   };
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50">
-      <div className="bg-white dark:bg-surface-dark w-full max-w-md rounded-2xl shadow-2xl border border-gray-200 dark:border-surface-border overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-surface-border">
+    <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-md z-[100]">
+      <div className="bg-surface-dark w-full max-w-md rounded-2xl shadow-2xl border border-white/10 overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <h3 className="text-lg font-bold text-text-heading dark:text-white flex items-center gap-2">
             <GitBranch className="text-primary" size={20} />
             New Branch
@@ -97,7 +97,7 @@ const BranchModal = () => {
         <div className="p-6">
           <div className="mb-4">
             <label className="block text-sm font-medium text-slate-400 mb-1">Parent Context</label>
-            <div className="p-3 bg-gray-100 dark:bg-background-dark rounded-lg text-sm text-text-heading dark:text-gray-300 border border-gray-200 dark:border-surface-border">
+            <div className="p-3 bg-background-dark rounded-lg text-sm text-gray-300 border border-white/10">
               {parentNode.data.title}
             </div>
           </div>
@@ -107,7 +107,7 @@ const BranchModal = () => {
             <input
               autoFocus
               type="text"
-              className="w-full bg-transparent border border-gray-200 dark:border-surface-border rounded-lg px-4 py-2 text-text-heading dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+              className="w-full bg-transparent border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
               placeholder="e.g., Alternative Algorithm..."
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -119,7 +119,7 @@ const BranchModal = () => {
               Focus <span className="text-slate-500 font-normal">(optional)</span>
             </label>
             <textarea
-              className="w-full bg-transparent border border-gray-200 dark:border-surface-border rounded-lg px-4 py-2 text-text-heading dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none"
+              className="w-full bg-transparent border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none"
               placeholder="What should this branch explore? e.g., 'Let's try a recursive approach instead...'"
               rows={3}
               value={focus}

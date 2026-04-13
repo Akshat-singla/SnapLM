@@ -15,9 +15,11 @@
     /* ─── Backgrounds ──────────────────────────── */
     --color-bg-light: #f6f6f8;
     --color-bg-dark: #111318;
+    --color-bg-dark-rgb: 17, 19, 24;
 
     /* ─── Surfaces ─────────────────────────────── */
     --color-surface-dark: #1a1d26;
+    --color-surface-dark-rgb: 26, 29, 38;
     --color-surface-border: #282e39;
     --color-surface-elevated: #1c222e;
     --color-surface-elevated-rgb: 28, 34, 46;

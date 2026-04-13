@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2, Mail, Lock, Smartphone } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useRobot } from "../../context/robotProvider";
 import useStore from "../../store";
 import { authApi } from "../../services/api/client";
@@ -19,7 +19,10 @@ export default function Login() {
 
 
     const navigate = useNavigate();
+    const location = useLocation();
     const login = useStore((state) => state.login);
+    
+    const from = location.state?.from || "/app";
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -28,9 +31,9 @@ export default function Login() {
         const result = await login(email, password);
         if (result.success) {
             setState("success");
-            setTimeout(() => navigate("/app"), 1000);
+            setTimeout(() => navigate(from), 1000);
         } else if (result.code === 'requires_2fa') {
-            navigate("/auth/2FA", { state: { tempToken: result.tempToken } });
+            navigate("/auth/2FA", { state: { tempToken: result.tempToken, from } });
         } else if (result.code === 'invalid_credentials') {
             setState("error");
         } else {
@@ -60,7 +63,7 @@ export default function Login() {
                 
                 useStore.getState().checkAuth(); // update store
                 setState("success");
-                setTimeout(() => navigate("/app"), 1000);
+                setTimeout(() => navigate(from), 1000);
             }
         } catch (err: any) {
             console.error("Passkey Error:", err);

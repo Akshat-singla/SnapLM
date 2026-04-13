@@ -31,6 +31,8 @@ const ProfilePage = () => {
   const projects = useStore(state => state.projects);
   const checkAuth = useStore(state => state.checkAuth);
   const logout = useStore(state => state.logout);
+  const deleteProject = useStore(state => state.deleteProject);
+  const deleteAccount = useStore(state => state.deleteAccount);
 
   const [editUsername, setEditUsername] = useState('');
   const [editEmail, setEditEmail] = useState('');
@@ -44,6 +46,10 @@ const ProfilePage = () => {
   // Passkeys State
   const [passkeysModalOpen, setPasskeysModalOpen] = useState(false);
   const [passkeysList, setPasskeysList] = useState<any[]>([]);
+  // Delete States
+  const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -157,6 +163,20 @@ const ProfilePage = () => {
   const handleLogout = () => {
     logout();
     navigate('/auth/login');
+  };
+
+  const handleDeleteProject = async (id: string, name: string) => {
+    if (window.confirm(`Are you sure you want to delete "${name}"? This action is permanent and cannot be undone.`)) {
+        await deleteProject(id);
+    }
+  };
+
+  const confirmDeleteAccount = async () => {
+     setDeletingAccount(true);
+     await deleteAccount();
+     setDeletingAccount(false);
+     setDeleteAccountModalOpen(false);
+     navigate('/auth/login');
   };
 
   const handleClearData = () => {
@@ -452,25 +472,41 @@ const ProfilePage = () => {
                       </p>
                     </div>
 
-                    <Button
-                      onClick={() => openProject(p.id || p.project_id)}
-                      variant="contained"
-                      sx={{
-                        bgcolor: 'rgba(255,255,255,0.08)',
-                        color: 'white',
-                        boxShadow: 'none',
-                        '&:hover': { bgcolor: 'rgba(255,255,255,0.15)', boxShadow: 'none' },
-                        textTransform: 'none',
-                        fontWeight: 600,
-                        fontFamily: 'Inter',
-                        px: 3,
-                        py: 1,
-                        borderRadius: 2
-                      }}
-                    >
-                      Enter Workspace
-                    </Button>
-                  </Box>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          onClick={() => openProject(p.id || p.project_id)}
+                          variant="contained"
+                          sx={{
+                            bgcolor: 'rgba(255,255,255,0.08)',
+                            color: 'white',
+                            boxShadow: 'none',
+                            '&:hover': { bgcolor: 'rgba(255,255,255,0.15)', boxShadow: 'none' },
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            fontFamily: 'Inter',
+                            px: 3,
+                            py: 1,
+                            borderRadius: 2
+                          }}
+                        >
+                          Enter
+                        </Button>
+                        <Button
+                          onClick={() => handleDeleteProject(p.id || p.project_id, p.name)}
+                          variant="outlined"
+                          color="error"
+                          sx={{
+                            borderColor: 'rgba(239, 68, 68, 0.3)',
+                            color: 'ef4444',
+                            minWidth: 'auto',
+                            px: 1.5,
+                            borderRadius: 2
+                          }}
+                        >
+                          <Trash2 size={18} />
+                        </Button>
+                      </div>
+                    </Box>
                 )) : (
                   <p className="text-slate-400">No projects found. Create one in the canvas area!</p>
                 )}
@@ -498,7 +534,7 @@ const ProfilePage = () => {
                 Manage your session and local data. Clearing cache acts as a hard reset for local states.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-4 items-start">
                 <Button
                   variant="outlined"
                   color="inherit"
@@ -515,7 +551,16 @@ const ProfilePage = () => {
                   startIcon={<Trash2 size={18} />}
                   sx={{ textTransform: 'none', fontWeight: 'bold' }}
                 >
-                  Clear Cache & Data
+                  Clear Cache
+                </Button>
+                <div className="flex-1" />
+                <Button
+                   variant="text"
+                   color="error"
+                   onClick={() => setDeleteAccountModalOpen(true)}
+                   sx={{ textTransform: 'none', fontWeight: 600, textDecoration: 'underline', '&:hover': { textDecoration: 'underline' } }}
+                >
+                    Delete Account Permanently
                 </Button>
               </div>
             </Paper>
@@ -622,6 +667,44 @@ const ProfilePage = () => {
         </DialogContent>
         <DialogActions sx={{ p: 3, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
           <Button onClick={() => setPasskeysModalOpen(false)} sx={{ color: 'white' }}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Account Confirmation Modal */}
+      <Dialog
+        open={deleteAccountModalOpen}
+        onClose={() => setDeleteAccountModalOpen(false)}
+        PaperProps={{
+          style: { backgroundColor: '#111318', color: 'white', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '16px' }
+        }}
+      >
+        <DialogTitle className="text-red-500 font-bold">Irreversible Action</DialogTitle>
+        <DialogContent>
+          <div className="space-y-4">
+            <p className="text-sm text-slate-300">
+                Are you absolutely sure you want to delete your account? This will permanently remove:
+            </p>
+            <ul className="list-disc list-inside text-xs text-slate-400 space-y-1">
+                <li>Your profile and login credentials</li>
+                <li>All of your SnapLM projects and nodes</li>
+                <li>All associated passkeys and 2FA settings</li>
+            </ul>
+            <p className="text-xs font-bold text-red-500 bg-red-500/10 p-3 rounded-lg border border-red-500/20">
+                Warning: This action cannot be undone. All data will be wiped from our secure servers immediately.
+            </p>
+          </div>
+        </DialogContent>
+        <DialogActions sx={{ p: 4, pt: 0 }}>
+             <Button onClick={() => setDeleteAccountModalOpen(false)} sx={{ color: 'white', textTransform: 'none' }}>Cancel</Button>
+             <Button 
+                onClick={confirmDeleteAccount} 
+                disabled={deletingAccount}
+                variant="contained" 
+                color="error" 
+                sx={{ textTransform: 'none', fontWeight: 'bold', borderRadius: 2 }}
+             >
+                {deletingAccount ? <Loader2 className="animate-spin" /> : 'Yes, Delete Everything'}
+             </Button>
         </DialogActions>
       </Dialog>
     </div>

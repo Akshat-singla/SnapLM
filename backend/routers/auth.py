@@ -194,3 +194,10 @@ async def disable_2fa(user: User = Depends(get_current_user), db: AsyncSession =
     await db.commit()
     return {"message": "2FA successfully disabled"}
 
+@router.delete("/me")
+async def delete_account(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    # Clean up associated projects if cascading delete is not handled by DB
+    await db.delete(user)
+    await db.commit()
+    return {"status": "deleted", "user_id": str(user.user_id)}
+

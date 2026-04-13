@@ -25,8 +25,6 @@ async def create_summary(
         is_latest=True,
     )
     session.add(summary)
-    await session.commit()
-    await session.refresh(summary)
     return summary
 
 

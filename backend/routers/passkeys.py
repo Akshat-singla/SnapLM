@@ -180,24 +180,18 @@ async def verify_auth_response(req: VerifyAuthReq, db: AsyncSession = Depends(ge
     user = None
     challenge = None
     
-    if req.email:
-        result = await db.execute(select(User).filter(User.email == req.email))
-        user = result.scalar_one_or_none()
-        if user:
-            challenge = user.webauthn_challenge
-    
-    # If we still don't have user/challenge (Discoverable Credential or Email-less)
-    if not challenge:
-        # Check anonymous cache
-        # We need the challenge from the credential response to find it in the cache
-        client_data_json = req.credential.get("response", {}).get("clientDataJSON")
-        if client_data_json:
-             # This is tricky because we'd need to parse clientDataJSON to get the challenge
-             # Let's just look at all challenges and see if any match? No.
-             # Better: the client should probably send the email or we just check the cache for the challenge!
-             # Wait, usually the client provides the challenge back in some form or we use the session.
-             # Since we don't have sessions, let's just use the challenge provided in the credential for this demo.
-             pass
+    # Try to get challenge from clientDataJSON if not provided by user email
+    client_data_json_b64 = req.credential.get("response", {}).get("clientDataJSON")
+    if client_data_json_b64:
+        try:
+            # Decode clientDataJSON to find the challenge sent by the client
+            import base64
+            # Add padding if needed for standard b64 if not using urlsafe
+            client_data_json = base64.urlsafe_b64decode(client_data_json_b64 + "==")
+            client_data = json.loads(client_data_json)
+            challenge = client_data.get("challenge")
+        except Exception as e:
+            print(f"Failed to parse clientDataJSON: {e}")
 
     try:
         # 1. Identify User from response
@@ -217,37 +211,67 @@ async def verify_auth_response(req: VerifyAuthReq, db: AsyncSession = Depends(ge
         if not user:
             raise HTTPException(status_code=400, detail="User belonging to passkey not found")
             
-        challenge = user.webauthn_challenge
+        # If we have a challenge from the user record, prefer it.
+        # Otherwise use the one we extracted or from cache.
+        final_challenge = user.webauthn_challenge or challenge
         
         # Fallback to anonymous cache if not on user
-        if not challenge:
-             # We need to find which challenge it was.
-             # For this demo, let's just pick any valid one from the cache 
-             # (Wait, this is slightly insecure but okay for an MVP without session).
-             if ANONYMOUS_CHALLENGES:
-                  challenge = next(iter(ANONYMOUS_CHALLENGES.keys()))
-                  del ANONYMOUS_CHALLENGES[challenge]
-        
-        if not challenge:
+        if not final_challenge and ANONYMOUS_CHALLENGES:
+             # If we still don't have it, we're in trouble for non-resident keys, 
+             # but let's try the cache as a last resort.
+             final_challenge = next(iter(ANONYMOUS_CHALLENGES.keys()))
+
+        if not final_challenge:
              raise HTTPException(status_code=400, detail="Challenge not found or expired")
 
-        verification = verify_authentication_response(
-            credential=req.credential,
-            expected_challenge=base64url_to_bytes(challenge),
-            expected_rp_id=RP_ID,
-            expected_origin=ORIGIN,
-            credential_public_key=base64url_to_bytes(stored_cred.public_key),
-            credential_current_sign_count=stored_cred.sign_count
-        )
+        # Handle local development origin flexibility (localhost vs 127.0.0.1)
+        expected_origins = [ORIGIN]
+        if "localhost" in ORIGIN:
+            expected_origins.append(ORIGIN.replace("localhost", "127.0.0.1"))
+        elif "127.0.0.1" in ORIGIN:
+            expected_origins.append(ORIGIN.replace("127.0.0.1", "localhost"))
 
-        # Update sign count
-        stored_cred.sign_count = verification.new_sign_count
-        user.webauthn_challenge = None
-        await db.commit()
+        # verify_authentication_response actually expects a single string or list?
+        # The library version might vary, but standard is a string. 
+        # We'll try to find the one that matches the credential origin if possible, or just try them.
+        
+        last_err = None
+        for origin in expected_origins:
+            try:
+                verification = verify_authentication_response(
+                    credential=req.credential,
+                    expected_challenge=base64url_to_bytes(final_challenge),
+                    expected_rp_id=RP_ID,
+                    expected_origin=origin,
+                    credential_public_key=base64url_to_bytes(stored_cred.public_key),
+                    credential_current_sign_count=stored_cred.sign_count
+                )
+                
+                # If we got here, verification succeeded!
+                stored_cred.sign_count = verification.new_sign_count
+                user.webauthn_challenge = None
+                # Also clean from cache
+                if final_challenge in ANONYMOUS_CHALLENGES:
+                    del ANONYMOUS_CHALLENGES[final_challenge]
+                    
+                await db.commit()
 
-        token = create_access_token(user.user_id)
-        return {"success": True, "token": token, "user": {"id": str(user.user_id), "email": user.email, "username": user.username}}
+                token = create_access_token(user.user_id)
+                return {
+                    "success": True, 
+                    "token": token, 
+                    "user": {"id": str(user.user_id), "email": user.email, "username": user.username}
+                }
+            except Exception as e:
+                last_err = e
+                continue
+        
+        # If we exhausted all origins
+        raise last_err
 
     except Exception as e:
+        print(f"Error during passkey verification: {e}")
+        import traceback
+        traceback.print_exc()
         await db.rollback()
         raise HTTPException(status_code=400, detail=str(e))

@@ -1,3 +1,4 @@
+import React from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -23,13 +24,24 @@ const edgeTypes = {
 import { NodeSkeleton } from '../Skeleton';
 
 const CanvasWrapper = () => {
-  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, setSelectedNode, loading } = useStore();
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, setSelectedNode, loading, currentProjectId, saveViewport, getViewport } = useStore();
+
+  const initialViewport = React.useMemo(() => {
+    if (currentProjectId) return getViewport(currentProjectId);
+    return null;
+  }, [currentProjectId, getViewport]);
 
   const handleNodeDragStop = async (_event: React.MouseEvent, node: Node<NodeData>) => {
     try {
       await nodesApi.updateNodePosition(node.id, node.position.x, node.position.y);
     } catch (error) {
       console.error('Failed to persist node position:', error);
+    }
+  };
+
+  const handleMoveEnd = (_event: any, viewport: { x: number; y: number; zoom: number }) => {
+    if (currentProjectId) {
+      saveViewport(currentProjectId, viewport);
     }
   };
 
@@ -70,22 +82,28 @@ const CanvasWrapper = () => {
         onNodeDragStop={handleNodeDragStop}
         onNodeClick={handleNodeClick}
         onPaneClick={handlePaneClick}
+        onMoveEnd={handleMoveEnd}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        fitView
+        defaultViewport={initialViewport || undefined}
+        fitView={!initialViewport}
         className="bg-transparent"
         minZoom={0.1}
         maxZoom={2}
       >
-        <Background gap={24} size={2} color="var(--color-surface-border)" />
-        <Controls className="fill-white stroke-white text-black" />
+        <Background gap={32} size={1} color="rgba(255,255,255,0.05)" />
+        <Controls 
+          className="bg-surface-elevated border border-white/10 rounded-lg overflow-hidden shadow-2xl [&_button]:bg-transparent [&_button]:border-white/5 [&_button:hover]:bg-white/10 [&_svg]:fill-white" 
+        />
         <MiniMap
           nodeColor={(n) => {
-            if (n.style?.background) return n.style.background as string;
-            return 'var(--color-surface-border)';
+            if (n.data?.status === 'active') return 'var(--color-primary)';
+            if (n.data?.status === 'frozen') return 'var(--color-node-frozen)';
+            return 'rgba(255,255,255,0.1)';
           }}
-          maskColor="var(--color-bg-dark)"
-          className="bg-surface-border"
+          maskColor="rgba(0,0,0,0.6)"
+          className="bg-background-dark/80 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden shadow-2xl"
+          style={{ width: 200, height: 150 }}
         />
       </ReactFlow>
 

@@ -21,8 +21,6 @@ async def create_message(
         metadata_=metadata or {},
     )
     session.add(msg)
-    await session.commit()
-    await session.refresh(msg)
     return msg
 
 

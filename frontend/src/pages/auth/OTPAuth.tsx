@@ -14,6 +14,7 @@ export default function OTPAuth() {
     const navigate = useNavigate();
     const verify2FA = useStore((state) => state.verify2FA);
     
+    const from = location.state?.from || "/app";
     const tempToken = location.state?.tempToken;
 
     useEffect(() => {
@@ -30,7 +31,7 @@ export default function OTPAuth() {
             const result = await verify2FA(otp, tempToken);
             if (result.success) {
                 setState("success");
-                setTimeout(() => navigate("/app"), 1000);
+                setTimeout(() => navigate(from), 1000);
             } else {
                 setState("error");
             }

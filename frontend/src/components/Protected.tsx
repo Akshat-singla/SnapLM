@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import useStore from '../store';
 
 export default function Protected({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, authLoading, checkAuth } = useStore();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     checkAuth();
@@ -12,9 +13,9 @@ export default function Protected({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      navigate('/auth/login');
+      navigate('/auth/login', { state: { from: location.pathname + location.search } });
     }
-  }, [isAuthenticated, authLoading, navigate]);
+  }, [isAuthenticated, authLoading, navigate, location]);
 
   if (authLoading) {
     return (

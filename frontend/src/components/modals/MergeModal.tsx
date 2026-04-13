@@ -104,10 +104,10 @@ const MergeModal = () => {
   };
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50">
-      <div className="bg-white dark:bg-surface-dark w-full max-w-md rounded-2xl shadow-2xl border border-gray-200 dark:border-surface-border overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-surface-border">
-          <h3 className="text-lg font-bold text-text-heading dark:text-white flex items-center gap-2">
+    <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-md z-[100]">
+      <div className="bg-surface-dark w-full max-w-md rounded-2xl shadow-2xl border border-white/10 overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
             <GitMerge className="text-purple-500" size={20} />
             Merge Branch
           </h3>
@@ -117,10 +117,10 @@ const MergeModal = () => {
         </div>
 
         <div className="p-6">
-          <div className="flex items-center gap-4 mb-6 p-4 bg-gray-50 dark:bg-background-dark rounded-xl border border-gray-200 dark:border-surface-border">
+          <div className="flex items-center gap-4 mb-6 p-4 bg-background-dark rounded-xl border border-white/10">
             <div className="flex-1 text-center">
               <span className="text-xs text-slate-500 block mb-1">From</span>
-              <span className="text-sm font-bold text-text-heading dark:text-white block truncate max-w-[100px] mx-auto">{node.data.title}</span>
+              <span className="text-sm font-bold text-white block truncate max-w-[100px] mx-auto">{node.data.title}</span>
             </div>
             <div className="text-slate-400">
               <ArrowRight size={16} />
@@ -128,7 +128,7 @@ const MergeModal = () => {
             <div className="flex-1 text-center">
               <span className="text-xs text-slate-500 block mb-1">To</span>
               <select
-                className="w-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-surface-border rounded px-2 py-1 text-xs font-bold text-text-heading dark:text-white truncate focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full bg-surface-dark border border-white/10 rounded px-2 py-1 text-xs font-bold text-white truncate focus:outline-none focus:ring-1 focus:ring-primary"
                 value={selectedTargetId}
                 onChange={(e) => setSelectedTargetId(e.target.value)}
               >
@@ -145,7 +145,7 @@ const MergeModal = () => {
             <label className="block text-sm font-medium text-slate-400 mb-1">Merge Summary</label>
             <textarea
               autoFocus
-              className="w-full bg-transparent border border-gray-200 dark:border-surface-border rounded-lg px-4 py-2 text-text-heading dark:text-white focus:outline-none focus:border-merge-accent focus:ring-1 focus:ring-merge-accent transition-all resize-none h-24"
+              className="w-full bg-transparent border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-merge-accent focus:ring-1 focus:ring-merge-accent transition-all resize-none h-24"
               placeholder="Describe the changes to be merged..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}

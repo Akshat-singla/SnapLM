@@ -44,10 +44,14 @@ interface AppState {
   createProject: (name: string, description?: string) => Promise<Project | null>;
   archiveProject: (id: string) => Promise<void>;
   unarchiveProject: (id: string) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
+  deleteAccount: () => Promise<void>;
   setCreateProjectModalOpen: (open: boolean) => void;
   createShareLink: () => Promise<string | null>;
   loadSharedWorkspace: (shareToken: string) => Promise<void>;
   loadSharedBranch: (shareId: string) => Promise<void>;
+  saveViewport: (projectId: string, viewport: { x: number; y: number; zoom: number }) => void;
+  getViewport: (projectId: string) => { x: number; y: number; zoom: number } | null;
 
   // Node Actions
   fetchNodes: () => Promise<void>;
@@ -162,16 +166,16 @@ const useStore = create<AppState>((set, get) => ({
     try {
       set({ authLoading: true });
       const response = await authApi.login(email, password);
-      
+
       if (response.requires_2fa) {
         set({ authLoading: false });
         return { success: false, code: 'requires_2fa', tempToken: response.temp_token };
       }
 
-      set({ 
-        user: response.user, 
-        isAuthenticated: true, 
-        authLoading: false 
+      set({
+        user: response.user,
+        isAuthenticated: true,
+        authLoading: false
       });
       get().addToast({ type: 'success', message: 'Welcome back!' });
       return { success: true };
@@ -191,10 +195,10 @@ const useStore = create<AppState>((set, get) => ({
     try {
       set({ authLoading: true });
       const response = await authApi.verify2FA(code, tempToken);
-      set({ 
-        user: response.user, 
-        isAuthenticated: true, 
-        authLoading: false 
+      set({
+        user: response.user,
+        isAuthenticated: true,
+        authLoading: false
       });
       get().addToast({ type: 'success', message: 'Signed in securely!' });
       return { success: true };
@@ -215,11 +219,11 @@ const useStore = create<AppState>((set, get) => ({
       console.error('Signup failed:', error);
       const detail = error.response?.data?.detail;
       set({ authLoading: false });
-      
+
       if (detail === 'User already exists') {
         return { success: false, code: 'user_exists' };
       }
-      
+
       get().addToast({ type: 'error', message: 'Registration failed' });
       return { success: false, code: 'error' };
     }
@@ -352,37 +356,62 @@ const useStore = create<AppState>((set, get) => ({
     }
   },
 
+  deleteProject: async (id: string) => {
+    try {
+      await projectsApi.deleteProject(id);
+      set({ 
+        projects: get().projects.filter(p => p.project_id !== id),
+        currentProjectId: get().currentProjectId === id ? null : get().currentProjectId
+      });
+      get().addToast({ type: 'success', message: 'Project deleted permanently' });
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+      get().addToast({ type: 'error', message: 'Failed to delete project' });
+    }
+  },
+
+  deleteAccount: async () => {
+    try {
+      await authApi.deleteAccount();
+      get().logout();
+      get().addToast({ type: 'success', message: 'Account deleted successfully' });
+    } catch (error) {
+      console.error('Failed to delete account:', error);
+      get().addToast({ type: 'error', message: 'Failed to delete account' });
+    }
+  },
+
   archiveNodeBranch: async (nodeId: string) => {
-  try {
-    const response = await api.post(`/nodes/${nodeId}/archive`);
-    
-    if (response.status !== 200) throw new Error('Failed to archive node branch');
-    
-    const data = response.data;
-    const archivedIds = new Set<string>(data.archived_node_ids ?? []);
+    try {
+      const response = await api.post(`/nodes/${nodeId}/archive`);
 
- set((state) => ({
-  selectedNodeId: nodeId,
-  nodes: state.nodes.map((node) =>
-    archivedIds.has(node.id)
-      ? {
-          ...node,
-          data: {
-            ...node.data,
-            isArchived: true, 
-          },
-        }
-      : node
-  ),
-}));
+      if (response.status !== 200) throw new Error('Failed to archive node branch');
 
-    get().addToast({ type: 'success', message: 'Branch archived successfully' });
-  } catch (error) {
-    console.error('archiveNodeBranch error:', error);
-    get().addToast({ type: 'error', message: 'Failed to archive branch' });
-    throw error;
-  }
-},
+      const data = response.data;
+      const archivedIds = new Set<string>(data.archived_node_ids ?? []);
+
+      set((state) => ({
+        selectedNodeId: nodeId,
+        nodes: state.nodes.map((node) =>
+          archivedIds.has(node.id)
+            ? {
+              ...node,
+              data: {
+                ...node.data,
+                isArchived: true,
+              },
+            }
+            : node
+        ),
+      }));
+
+      get().addToast({ type: 'success', message: 'Branch archived successfully' });
+    } catch (error) {
+      console.error('archiveNodeBranch error:', error);
+      get().addToast({ type: 'error', message: 'Failed to archive branch' });
+      throw error;
+    }
+  },
 
   setCreateProjectModalOpen: (open: boolean) => {
     set({ createProjectModalOpen: open });
@@ -397,7 +426,7 @@ const useStore = create<AppState>((set, get) => ({
 
     try {
       const response = await projectsApi.createProjectShare(currentProjectId);
-      const shareLink = `${window.location.origin}/shared/${response.share_token}`;
+      const shareLink = `${window.location.origin}/app/shared/${response.share_token}`;
       try {
         await navigator.clipboard.writeText(shareLink);
         get().addToast({ type: 'success', message: 'Share link copied to clipboard' });
@@ -410,7 +439,7 @@ const useStore = create<AppState>((set, get) => ({
       get().addToast({ type: 'error', message: 'Failed to create share link' });
       return null;
     }
-},
+  },
 
   loadSharedWorkspace: async (shareToken: string) => {
     try {
@@ -498,16 +527,16 @@ const useStore = create<AppState>((set, get) => ({
       const edges: Edge[] =
         data.edges && data.edges.length > 0
           ? data.edges.map((e: any) => ({
-              id: e.id,
-              source: e.source,
-              target: e.target,
-              type: 'context',
-              animated: false,
-              style:
-                e.type === 'merge'
-                  ? { strokeWidth: 1.5, strokeDasharray: '5,5' }
-                  : { strokeWidth: 1.5 },
-            }))
+            id: e.id,
+            source: e.source,
+            target: e.target,
+            type: 'context',
+            animated: false,
+            style:
+              e.type === 'merge'
+                ? { strokeWidth: 1.5, strokeDasharray: '5,5' }
+                : { strokeWidth: 1.5 },
+          }))
           : buildEdgesFromNodes(nodes);
 
       const mappedMessages = Object.fromEntries(
@@ -559,7 +588,7 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   // Node Actions
-fetchNodes: async () => {
+  fetchNodes: async () => {
     try {
       set({ loading: { ...get().loading, nodes: true } });
       const nodes = await nodesApi.getNodes();
@@ -704,6 +733,13 @@ fetchNodes: async () => {
 
   removeToast: (id) => {
     set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
+  },
+  saveViewport: (projectId, viewport) => {
+    localStorage.setItem(`viewport-${projectId}`, JSON.stringify(viewport));
+  },
+  getViewport: (projectId) => {
+    const saved = localStorage.getItem(`viewport-${projectId}`);
+    return saved ? JSON.parse(saved) : null;
   },
 }));
 

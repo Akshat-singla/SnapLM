@@ -152,6 +152,7 @@ async def create_node(
     }
 
     node = await crud_create_node(session, node_data)
+    await session.flush()
     await record_event(
         session,
         node.node_id,
@@ -197,6 +198,9 @@ async def create_node(
             "MESSAGE_ADDED",
             {"role": "assistant", "context": "initial_response"},
         )
+    
+    await session.commit()
+    await session.refresh(node)
 
     return NodeResponse(
         node_id=node.node_id,
@@ -230,6 +234,7 @@ async def send_message(
     user_msg = await create_message(
         session, node_id, "user", request.content, user_msg_token_count
     )
+    await session.flush()
     await record_event(
         session,
         node_id,
@@ -264,6 +269,9 @@ async def send_message(
         "MESSAGE_ADDED",
         {"role": "assistant", "message_id": str(asst_msg.message_id)},
     )
+
+    await session.commit()
+    await session.refresh(asst_msg)
 
     return MessageResponse(
         message_id=asst_msg.message_id,
@@ -307,6 +315,9 @@ async def send_vision_message(
     asst_msg = await create_message(session, node_id, "assistant", response_text, asst_token_count)
     await record_event(session, node_id, "MESSAGE_ADDED", {"role": "assistant", "context": "vision_response"})
 
+    await session.commit()
+    await session.refresh(asst_msg)
+
     return MessageResponse(
         message_id=asst_msg.message_id,
         node_id=asst_msg.node_id,
@@ -338,6 +349,7 @@ async def summarize_node(node_id: uuid.UUID, session: AsyncSession = Depends(get
         raise HTTPException(status_code=500, detail=str(e))
 
     summary_obj = await create_summary(session, node_id, summary_dict)
+    await session.flush()
     await record_event(
         session, node_id, "SUMMARY_UPDATED", {"summary_id": str(summary_obj.summary_id)}
     )
@@ -368,6 +380,9 @@ async def summarize_node(node_id: uuid.UUID, session: AsyncSession = Depends(get
         graph_status = "failed"
         graph_error = f"Graph extraction failed: {str(e)}. Re-run summarize to retry."
         logger.error(f"Graph extraction failed for node {node_id}: {e}")
+
+    await session.commit()
+    await session.refresh(summary_obj)
 
     return SummarizeResponse(
         summary_id=summary_obj.summary_id,
@@ -423,6 +438,8 @@ async def merge_nodes(request: MergeRequest, session: AsyncSession = Depends(get
     summary_msg_content = f"Merged from {source.title}: {json.dumps(updated_summary.get('FACTS', 'See summary'))}"
     await create_message(session, target.node_id, "summary", summary_msg_content)
 
+    await session.commit()
+
     return MergeResponse(
         target_node_id=target.node_id,
         source_node_id=source.node_id,
@@ -443,6 +460,7 @@ async def delete_node(
     await update_node_status(session, node_id, "deleted")
 
     await soft_delete_edges(session, node_id)
+    await session.commit()
     return DeleteResponse(
         node_id=node_id,
         status="deleted",
@@ -475,6 +493,7 @@ async def copy_node(
             "status": "active",
         },
     )
+    await session.flush()
 
     await record_event(
         session,
@@ -482,6 +501,9 @@ async def copy_node(
         "NODE_COPIED",
         {"original_node_id": str(original.node_id)},
     )
+
+    await session.commit()
+    await session.refresh(new_node)
 
     return NodeResponse(
         node_id=new_node.node_id,
@@ -694,6 +716,7 @@ async def create_project(
         "status": "active",
     }
     root_node = await crud_create_node(session, root_node_data)
+    await session.flush()
     await record_event(
         session,
         root_node.node_id,
@@ -709,6 +732,9 @@ async def create_project(
     logger.info(
         f"Created project: {project.project_id} - {project.name} with root node: {root_node.node_id}"
     )
+
+    await session.commit()
+    await session.refresh(project)
 
     return ProjectResponse(
         project_id=project.project_id,

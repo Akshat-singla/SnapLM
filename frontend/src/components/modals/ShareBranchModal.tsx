@@ -27,7 +27,7 @@ const ShareBranchModal = ({ open, onClose }: ShareBranchModalProps) => {
         root_node_id: selectedNodeId,
         shared_with_user: sharedWith.trim(),
       });
-      const link = `${window.location.origin}/branch/${res.share_id}`;
+      const link = `${window.location.origin}/app/branch/${res.share_id}`;
       setLastLink(link);
       try {
         await navigator.clipboard.writeText(link);

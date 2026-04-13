@@ -139,22 +139,40 @@ const Toolbar = () => {
             onClose={() => setNotificationAnchor(null)}
             PaperProps={{
               sx: {
-                bgcolor: 'rgba(var(--color-bg-dark-rgb), 0.95)',
+                bgcolor: 'var(--color-surface-dark)',
                 color: 'white',
                 border: '1px solid rgba(255,255,255,0.1)',
                 backdropFilter: 'blur(10px)',
                 minWidth: 280,
                 mt: 1.5,
+                '& .MuiMenuItem-root': {
+                    fontSize: '0.875rem',
+                    py: 1.5,
+                    '&:hover': {
+                        bgcolor: 'rgba(255,255,255,0.05)'
+                    }
+                }
               }
             }}
             transformOrigin={{ horizontal: 'right', vertical: 'top' }}
             anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
           >
-            <div className="px-4 py-2 font-bold border-b border-white/10 mb-2">Notifications</div>
-            <MenuItem onClick={() => setNotificationAnchor(null)} sx={{ fontSize: '0.875rem' }}>Your model finished training</MenuItem>
-            <MenuItem onClick={() => setNotificationAnchor(null)} sx={{ fontSize: '0.875rem' }}>John shared a branch</MenuItem>
-            <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
-            <MenuItem onClick={() => setNotificationAnchor(null)} sx={{ fontSize: '0.875rem', color: 'var(--color-primary)' }}>View all notifications</MenuItem>
+            <div className="px-4 py-3 font-bold border-b border-white/10 mb-1 text-sm uppercase tracking-wider text-slate-400">
+                Notifications
+            </div>
+            <MenuItem onClick={() => setNotificationAnchor(null)}>
+                Your model finished training
+            </MenuItem>
+            <MenuItem onClick={() => setNotificationAnchor(null)}>
+                John shared a branch
+            </MenuItem>
+            <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', my: 1 }} />
+            <MenuItem 
+                onClick={() => setNotificationAnchor(null)} 
+                sx={{ color: 'var(--color-primary)', fontWeight: 'bold' }}
+            >
+                View all notifications
+            </MenuItem>
           </Menu>
         </div>
       </Box>
