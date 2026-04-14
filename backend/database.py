@@ -23,6 +23,7 @@ async def get_db():
 
 async def init_db():
     import models.db_models  # noqa: F401 — register all models on Base.metadata before create_all
+    import models.user  # noqa: F401 — register AuthUser
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

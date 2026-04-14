@@ -830,7 +830,8 @@ from services.graph_service import (
 from services.llm_service import llm_service
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.helpers import estimate_token_count
-from routers.auth import router as authRouter 
+from routers.auth import router as authRouter
+from routers.user import router as userRouter
 
 
 logging.basicConfig(level=logging.INFO)
@@ -874,6 +875,7 @@ def _require_user_uuid(
         raise HTTPException(status_code=400, detail="Invalid X-User-Id header")
 
 app.include_router(authRouter)
+app.include_router(userRouter)
 
 # middleware for frontend-backend
 app.add_middleware(
