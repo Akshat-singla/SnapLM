@@ -73,7 +73,8 @@ from services.graph_service import (
 from services.llm_service import llm_service
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils.helpers import estimate_token_count
-from routers.auth import router as authRouter 
+from routers.auth import router as authRouter
+from routers.user import router as userRouter
 from routers.passkeys import router as passkeysRouter
 from utils.auth import get_current_user_id, get_optional_user_id
 
@@ -98,6 +99,7 @@ app = FastAPI(
 
 # Auth routers
 app.include_router(authRouter)
+app.include_router(userRouter)
 app.include_router(passkeysRouter)
 
 # middleware for frontend-backend
