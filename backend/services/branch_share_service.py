@@ -1,12 +1,11 @@
-"""Serialized branch subgraph for sharing (one subtree, not the full canvas).
+"""Serialized contributing subgraph for sharing (selected node + all ancestors).
 
-Traversal (BFS): start at ``root_node_id``, include that node, then repeatedly add
-every child where ``parent_id`` points into the branch. This matches "main branch"
-in the spec: the selected node plus all descendants along parent-child edges only.
+Traversal (BFS): start at ``root_node_id`` (selected node), then repeatedly walk
+backward through every parent edge (``parent_id`` and ``merge_parent_id``).
 
-Merge edges (``merge_parent_id``) are included in the export only when both endpoints
-lie inside the collected set, so unrelated merge targets outside the subtree are
-not pulled in.
+This is a graph traversal, not a tree walk: merge nodes can produce multiple
+upstream parent paths. The visited set defines the selected nodes, and only edges
+with both endpoints in that set are exported.
 
 Output shape stored in ``shared_projects.graph_data``::
 
@@ -16,6 +15,7 @@ Output shape stored in ``shared_projects.graph_data``::
 from __future__ import annotations
 
 import uuid
+from collections import defaultdict, deque
 from typing import Any
 
 from crud.messages import get_messages as crud_get_messages
@@ -26,32 +26,55 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def collect_branch_nodes(
-    session: AsyncSession, root_node_id: uuid.UUID
+    session: AsyncSession, project_id: uuid.UUID, root_node_id: uuid.UUID
 ) -> list[Any] | None:
-    """Root plus all descendants along parent edges, excluding deleted nodes."""
-    root = await get_node(session, root_node_id)
-    if not root or root.status == "deleted":
+    """Selected node plus all upstream contributors via parent + merge edges."""
+    selected = await get_node(session, root_node_id)
+    if not selected or selected.status == "deleted":
+        return None
+    if selected.project_id != project_id:
         return None
 
-    collected: list[Any] = [root]
-    seen = {root.node_id}
-    queue = [root.node_id]
+    result = await session.execute(
+        select(Node).where(
+            Node.project_id == project_id,
+            Node.status != "deleted",
+        )
+    )
+    project_nodes = result.scalars().all()
+
+    if not project_nodes:
+        return None
+
+    node_by_id = {n.node_id: n for n in project_nodes}
+    if root_node_id not in node_by_id:
+        return None
+
+    # Build child -> parents adjacency so we can traverse backward.
+    parent_map: dict[uuid.UUID, set[uuid.UUID]] = defaultdict(set)
+    for n in project_nodes:
+        if n.parent_id and n.parent_id in node_by_id:
+            parent_map[n.node_id].add(n.parent_id)
+        if n.merge_parent_id and n.merge_parent_id in node_by_id:
+            parent_map[n.node_id].add(n.merge_parent_id)
+
+    visited: set[uuid.UUID] = set()
+    visit_order: list[uuid.UUID] = []
+    queue = deque([root_node_id])
 
     while queue:
-        parent_id = queue.pop(0)
-        result = await session.execute(
-            select(Node).where(
-                Node.parent_id == parent_id,
-                Node.status != "deleted",
-            )
-        )
-        for child in result.scalars().all():
-            if child.node_id not in seen:
-                seen.add(child.node_id)
-                collected.append(child)
-                queue.append(child.node_id)
+        current_id = queue.popleft()
+        if current_id in visited:
+            continue
 
-    return collected
+        visited.add(current_id)
+        visit_order.append(current_id)
+
+        for parent_id in parent_map.get(current_id, set()):
+            if parent_id not in visited:
+                queue.append(parent_id)
+
+    return [node_by_id[nid] for nid in visit_order if nid in node_by_id]
 
 
 def _msg_to_dict(m: Any) -> dict[str, Any]:
@@ -72,11 +95,8 @@ async def build_branch_graph_data(
     root_node_id: uuid.UUID,
     project_name: str,
 ) -> dict[str, Any]:
-    branch_nodes = await collect_branch_nodes(session, root_node_id)
+    branch_nodes = await collect_branch_nodes(session, project_id, root_node_id)
     if not branch_nodes:
-        return None
-    root = branch_nodes[0]
-    if root.project_id != project_id:
         return None
 
     node_ids = {n.node_id for n in branch_nodes}
@@ -86,11 +106,7 @@ async def build_branch_graph_data(
         parent_in_branch = n.parent_id in node_ids if n.parent_id else False
         merge_in_branch = n.merge_parent_id in node_ids if n.merge_parent_id else False
 
-        export_parent = None
-        if n.node_id == root_node_id:
-            export_parent = None
-        elif parent_in_branch:
-            export_parent = str(n.parent_id)
+        export_parent = str(n.parent_id) if parent_in_branch else None
 
         export_merge = str(n.merge_parent_id) if merge_in_branch else None
 
@@ -109,7 +125,7 @@ async def build_branch_graph_data(
 
     edges: list[dict[str, Any]] = []
     for n in branch_nodes:
-        if n.node_id != root_node_id and n.parent_id and n.parent_id in node_ids:
+        if n.parent_id and n.parent_id in node_ids:
             edges.append(
                 {
                     "id": f"e-{n.parent_id}-{n.node_id}",

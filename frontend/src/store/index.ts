@@ -5,6 +5,8 @@ import { canvasApi, nodesApi, projectsApi, type Project } from '../services/api/
 
 interface AppState {
   archiveNodeBranch: (nodeId: string) => Promise<void>;
+  restoreNodeBranch: (nodeId: string) => Promise<void>;
+  deleteNodeBranch: (nodeId: string, cascade?: boolean) => Promise<void>;
   // Canvas State
   nodes: Node<NodeData>[];
   edges: Edge[];
@@ -22,6 +24,7 @@ interface AppState {
   creatingBranchNodeId: string | null; // ID of the node being branched from
   mergingNodeId: string | null; // ID of the node being merged
   highlightedPath: string[]; // Node IDs in the context path
+  highlightedEdges: string[]; // Edge pairs as "source->target" in the highlighted ancestry
   messages: Record<string, Message[]>; // Chat messages per node
   loading: Record<string, boolean>; // generic loading states by key
   toasts: Array<{ id: string; type: 'success' | 'error' | 'info'; message: string }>;
@@ -32,6 +35,7 @@ interface AppState {
   createProject: (name: string, description?: string) => Promise<Project | null>;
   archiveProject: (id: string) => Promise<void>;
   unarchiveProject: (id: string) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
   setCreateProjectModalOpen: (open: boolean) => void;
   createShareLink: () => Promise<string | null>;
   loadSharedWorkspace: (shareToken: string) => Promise<void>;
@@ -138,6 +142,7 @@ const useStore = create<AppState>((set, get) => ({
   creatingBranchNodeId: null,
   mergingNodeId: null,
   highlightedPath: [],
+  highlightedEdges: [],
   messages: {},
   loading: {},
   toasts: [],
@@ -253,41 +258,143 @@ const useStore = create<AppState>((set, get) => ({
     }
   },
 
+  deleteProject: async (id: string) => {
+    const { projects, currentProjectId } = get();
+    const previousProjects = projects;
+
+    const optimisticProjects = projects.filter((project) => project.project_id !== id);
+    set({ projects: optimisticProjects });
+
+    if (currentProjectId === id) {
+      const nextActiveProject = optimisticProjects.find((project) => !project.is_archived);
+      await get().setCurrentProject(nextActiveProject?.project_id ?? null);
+    }
+
+    try {
+      await projectsApi.deleteProject(id);
+      get().addToast({ type: 'success', message: 'Project deleted successfully' });
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+      try {
+        const refreshed = await projectsApi.getProjects();
+        set({ projects: refreshed });
+      } catch {
+        set({ projects: previousProjects });
+      }
+      get().addToast({ type: 'error', message: 'Failed to delete project' });
+    }
+  },
+
   //archive leaf nodes action
   archiveNodeBranch: async (nodeId: string) => {
-  try {
-    const response = await fetch(`/api/v1/nodes/${nodeId}/archive`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    
-    if (!response.ok) throw new Error('Failed to archive node branch');
-    
-    const data = await response.json();
-    const archivedIds = new Set<string>(data.archived_node_ids ?? []);
+    try {
+      const data = await nodesApi.archiveNodeBranch(nodeId);
+      const archivedIds = new Set<string>(data.archived_node_ids ?? []);
 
- set((state) => ({
-  selectedNodeId: nodeId,
-  nodes: state.nodes.map((node) =>
-    archivedIds.has(node.id)
-      ? {
-          ...node,
-          data: {
-            ...node.data,
-            isArchived: true, 
-          },
-        }
-      : node
-  ),
-}));
+      set((state) => ({
+        selectedNodeId: nodeId,
+        highlightedPath: Array.from(archivedIds),
+        highlightedEdges: state.edges
+          .filter((edge) => archivedIds.has(edge.source) && archivedIds.has(edge.target))
+          .map((edge) => `${edge.source}->${edge.target}`),
+        nodes: state.nodes.map((node) =>
+          archivedIds.has(node.id)
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  status: 'archived',
+                  isArchived: true,
+                },
+              }
+            : node
+        ),
+      }));
 
-    get().addToast({ type: 'success', message: 'Branch archived successfully' });
-  } catch (error) {
-    console.error('archiveNodeBranch error:', error);
-    get().addToast({ type: 'error', message: 'Failed to archive branch' });
-    throw error;
-  }
-},
+      get().addToast({ type: 'success', message: 'Branch archived successfully' });
+    } catch (error) {
+      console.error('archiveNodeBranch error:', error);
+      get().addToast({ type: 'error', message: 'Failed to archive branch' });
+      throw error;
+    }
+  },
+
+  restoreNodeBranch: async (nodeId: string) => {
+    try {
+      const data = await nodesApi.restoreNodeBranch(nodeId);
+      const restoredIds = new Set<string>(data.restored_node_ids ?? []);
+
+      if (restoredIds.size === 0) {
+        get().addToast({ type: 'info', message: 'No archived nodes found to restore' });
+        return;
+      }
+
+      set((state) => ({
+        selectedNodeId: nodeId,
+        highlightedPath: Array.from(restoredIds),
+        highlightedEdges: state.edges
+          .filter((edge) => restoredIds.has(edge.source) && restoredIds.has(edge.target))
+          .map((edge) => `${edge.source}->${edge.target}`),
+        nodes: state.nodes.map((node) =>
+          restoredIds.has(node.id)
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  status: 'active',
+                  isArchived: false,
+                },
+              }
+            : node
+        ),
+      }));
+
+      get().addToast({ type: 'success', message: 'Archived nodes restored successfully' });
+    } catch (error) {
+      console.error('restoreNodeBranch error:', error);
+      get().addToast({ type: 'error', message: 'Failed to restore archived nodes' });
+      throw error;
+    }
+  },
+
+  deleteNodeBranch: async (nodeId: string, cascade: boolean = false) => {
+    try {
+      const data = await nodesApi.deleteNode(nodeId, cascade);
+      const deletedIds = new Set<string>([
+        data.node_id,
+        ...(data.affected_descendants ?? []),
+      ]);
+
+      set((state) => {
+        const remainingNodes = state.nodes.filter((node) => !deletedIds.has(node.id));
+        const remainingEdges = state.edges.filter(
+          (edge) => !deletedIds.has(edge.source) && !deletedIds.has(edge.target)
+        );
+
+        const clearSelection = state.selectedNodeId && deletedIds.has(state.selectedNodeId);
+        const clearExpanded = state.expandedNodeId && deletedIds.has(state.expandedNodeId);
+
+        return {
+          nodes: remainingNodes,
+          edges: remainingEdges,
+          selectedNodeId: clearSelection ? null : state.selectedNodeId,
+          expandedNodeId: clearExpanded ? null : state.expandedNodeId,
+        };
+      });
+
+      get().addToast({
+        type: 'success',
+        message: cascade ? 'Tree deleted successfully' : 'Node deleted successfully',
+      });
+    } catch (error) {
+      console.error('deleteNodeBranch error:', error);
+      get().addToast({
+        type: 'error',
+        message: cascade ? 'Failed to delete tree' : 'Failed to delete node',
+      });
+      throw error;
+    }
+  },
 
   setCreateProjectModalOpen: (open: boolean) => {
     set({ createProjectModalOpen: open });
@@ -573,21 +680,42 @@ fetchNodes: async () => {
     set({ selectedNodeId: id });
 
     if (!id) {
-      set({ highlightedPath: [] });
+      set({ highlightedPath: [], highlightedEdges: [] });
       return;
     }
 
-    const { nodes } = get();
-    const path: string[] = [];
-    let currentId: string | null = id;
-
-    while (currentId) {
-      path.unshift(currentId);
-      const node = nodes.find(n => n.id === currentId);
-      currentId = node?.data.parentId || null;
+    const { edges } = get();
+    const incomingByTarget = new Map<string, string[]>();
+    for (const edge of edges) {
+      const arr = incomingByTarget.get(edge.target) || [];
+      arr.push(edge.source);
+      incomingByTarget.set(edge.target, arr);
     }
 
-    set({ highlightedPath: path });
+    const visited = new Set<string>();
+    const edgeKeys = new Set<string>();
+    const stack: string[] = [id];
+
+    // Graph traversal over incoming edges: include all contributors to selected node.
+    while (stack.length > 0) {
+      const currentId = stack.pop();
+      if (!currentId || visited.has(currentId)) continue;
+
+      visited.add(currentId);
+
+      const parents = incomingByTarget.get(currentId) || [];
+      for (const parentId of parents) {
+        edgeKeys.add(`${parentId}->${currentId}`);
+        if (!visited.has(parentId)) {
+          stack.push(parentId);
+        }
+      }
+    }
+
+    set({
+      highlightedPath: Array.from(visited),
+      highlightedEdges: Array.from(edgeKeys),
+    });
   },
   setExpandedNode: (id) => set({ expandedNodeId: id }),
   setCreatingBranchNodeId: (id) => set({ creatingBranchNodeId: id }),

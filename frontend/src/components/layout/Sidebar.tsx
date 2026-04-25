@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LayoutDashboard, Clock, Bookmark, Share2, Archive, Search, ChevronRight, FileText, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Clock, Bookmark, Share2, Archive, Search, ChevronRight, FileText, ChevronDown, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useStore from '../../store';
 import clsx from 'clsx';
@@ -14,6 +14,7 @@ const Sidebar = () => {
     setCurrentProject,
     archiveProject,
     unarchiveProject,
+    deleteProject,
   } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [isTreeExpanded, setIsTreeExpanded] = useState(true);
@@ -95,6 +96,17 @@ const Sidebar = () => {
                     title="Archive project"
                   >
                     <Archive size={14} />
+                  </button>
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (!confirm(`Delete project "${project.name}"? This cannot be undone.`)) return;
+                      await deleteProject(project.project_id);
+                    }}
+                    className="text-slate-500 hover:text-red-400 transition-colors"
+                    title="Delete project"
+                  >
+                    <Trash2 size={14} />
                   </button>
                 </div>
               ))

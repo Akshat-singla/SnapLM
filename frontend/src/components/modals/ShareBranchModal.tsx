@@ -67,8 +67,8 @@ const ShareBranchModal = ({ open, onClose }: ShareBranchModalProps) => {
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           <p className="text-sm text-slate-400">
-            Shares the selected node and all descendants (parent/child and merge links within this
-            subtree). Messages and positions are included.
+            Shares the selected node and all upstream contributors (all parent and merge-parent
+            paths that lead into it). Only connected nodes and edges are included.
           </p>
           <div>
             <label className="block text-xs text-slate-400 mb-1">Share with (user id or label)</label>

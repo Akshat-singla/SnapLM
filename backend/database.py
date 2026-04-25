@@ -27,6 +27,10 @@ async def init_db():
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Older databases were created before projects.owner_id existed.
+        await conn.execute(
+            text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS owner_id UUID NULL")
+        )
         # Backfill schema for existing databases without migrations.
         await conn.execute(
             text(
