@@ -22,7 +22,6 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
   const archiveNodeBranch = useStore(state => state.archiveNodeBranch);
   const restoreNodeBranch = useStore(state => state.restoreNodeBranch);
   const deleteNodeBranch = useStore(state => state.deleteNodeBranch);
-  const nodes = useStore(state => state.nodes);
   //const [_isDeleting, setIsDeleting] = useState(false);
 
   const isHighlighted = highlightedPath.includes(id);
