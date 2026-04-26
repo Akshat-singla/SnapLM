@@ -1,12 +1,13 @@
-"""Serialized branch subgraph for sharing (one subtree, not the full canvas).
+"""Serialized branch subgraph for sharing (path + subtree, not full canvas).
 
-Traversal (BFS): start at ``root_node_id``, include that node, then repeatedly add
-every child where ``parent_id`` points into the branch. This matches "main branch"
-in the spec: the selected node plus all descendants along parent-child edges only.
+Traversal shape:
+1) Ancestor chain from project root -> selected node, following ``parent_id`` upward.
+2) Descendants of selected node, following ``parent_id`` downward (BFS).
 
-Merge edges (``merge_parent_id``) are included in the export only when both endpoints
-lie inside the collected set, so unrelated merge targets outside the subtree are
-not pulled in.
+Final node set = ancestor chain U selected subtree.
+
+Merge edges (``merge_parent_id``) are exported only when both endpoints are inside
+the final node set, so unrelated merge targets remain excluded.
 
 Output shape stored in ``shared_projects.graph_data``::
 
@@ -54,6 +55,63 @@ async def collect_branch_nodes(
     return collected
 
 
+async def get_ancestor_chain(
+    session: AsyncSession, node_id: uuid.UUID
+) -> list[Any] | None:
+    """Return ordered ancestors from graph root to selected node."""
+    selected = await get_node(session, node_id)
+    if not selected or selected.status == "deleted":
+        return None
+
+    chain_from_selected: list[Any] = [selected]
+    seen = {selected.node_id}
+    current = selected
+
+    while current.parent_id:
+        if current.parent_id in seen:
+            break
+
+        parent = await get_node(session, current.parent_id)
+        if not parent or parent.status == "deleted":
+            break
+
+        chain_from_selected.append(parent)
+        seen.add(parent.node_id)
+        current = parent
+
+    return list(reversed(chain_from_selected))
+
+
+async def get_subtree_nodes(
+    session: AsyncSession, node_id: uuid.UUID
+) -> list[Any] | None:
+    """Return selected node plus all descendants (BFS, cycle-safe)."""
+    root = await get_node(session, node_id)
+    if not root or root.status == "deleted":
+        return None
+
+    collected: list[Any] = [root]
+    seen = {root.node_id}
+    queue = [root.node_id]
+
+    while queue:
+        parent_id = queue.pop(0)
+        result = await session.execute(
+            select(Node).where(
+                Node.parent_id == parent_id,
+                Node.status != "deleted",
+            )
+        )
+        for child in result.scalars().all():
+            if child.node_id in seen:
+                continue
+            seen.add(child.node_id)
+            collected.append(child)
+            queue.append(child.node_id)
+
+    return collected
+
+
 def _msg_to_dict(m: Any) -> dict[str, Any]:
     return {
         "message_id": str(m.message_id),
@@ -72,12 +130,25 @@ async def build_branch_graph_data(
     root_node_id: uuid.UUID,
     project_name: str,
 ) -> dict[str, Any]:
-    branch_nodes = await collect_branch_nodes(session, root_node_id)
-    if not branch_nodes:
+    ancestor_chain = await get_ancestor_chain(session, root_node_id)
+    if not ancestor_chain:
         return None
-    root = branch_nodes[0]
-    if root.project_id != project_id:
+
+    subtree_nodes = await get_subtree_nodes(session, root_node_id)
+    if not subtree_nodes:
         return None
+
+    selected = ancestor_chain[-1]
+    if selected.project_id != project_id:
+        return None
+
+    branch_nodes: list[Any] = []
+    seen_node_ids: set[uuid.UUID] = set()
+    for node in ancestor_chain + subtree_nodes:
+        if node.node_id in seen_node_ids:
+            continue
+        seen_node_ids.add(node.node_id)
+        branch_nodes.append(node)
 
     node_ids = {n.node_id for n in branch_nodes}
 
@@ -87,9 +158,7 @@ async def build_branch_graph_data(
         merge_in_branch = n.merge_parent_id in node_ids if n.merge_parent_id else False
 
         export_parent = None
-        if n.node_id == root_node_id:
-            export_parent = None
-        elif parent_in_branch:
+        if parent_in_branch:
             export_parent = str(n.parent_id)
 
         export_merge = str(n.merge_parent_id) if merge_in_branch else None
