@@ -33,23 +33,26 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  
-  /* Custom scrollbar for clean look (from code2.html) */
+
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
+
   ::-webkit-scrollbar-track {
     background: transparent;
   }
+
   ::-webkit-scrollbar-thumb {
     background: #282e39;
     border-radius: 4px;
   }
+
   ::-webkit-scrollbar-thumb:hover {
     background: #3c4453;
   }

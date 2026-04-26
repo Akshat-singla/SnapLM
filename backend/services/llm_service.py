@@ -30,6 +30,28 @@ class LLMService:
             logging.error(f"LLM Call failed for {model_name}: {e}")
             raise e
 
+    async def vision_chat(self, image_bytes: bytes, user_prompt: str, system_prompt: str = "") -> str:
+        """Send an image + prompt to moondream via Ollama."""
+        client = ollama.Client(host=settings.ollama_device_a_url)
+        loop = asyncio.get_event_loop()
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({
+            "role": "user",
+            "content": user_prompt,
+            "images": [image_bytes]
+        })
+        try:
+            response = await loop.run_in_executor(
+                None,
+                lambda: client.chat(model="moondream", messages=messages)
+            )
+            return response["message"]["content"]
+        except Exception as e:
+            logging.error(f"Vision call failed: {e}")
+            raise e
+
     async def chat(self, system_prompt: str, user_content: str) -> str:
         return await self.call(settings.MODEL_MAIN_REASONER, system_prompt, user_content)
 

@@ -19,34 +19,27 @@ from sqlalchemy.sql import func
 
 
 class User(Base):
-    __tablename__ = "users"
+    __tablename__ = "workspace_users"
 
     user_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    username = Column(String(100), nullable=False, unique=True, index=True)
+    username = Column(String(100), nullable=True, unique=True, index=True)
     email = Column(String(255), nullable=False, unique=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    projects = relationship("Project", back_populates="owner")
 
 
 class Project(Base):
     __tablename__ = "projects"
 
     project_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    owner_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("users.user_id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
+    owner_id = Column(UUID(as_uuid=True), ForeignKey("workspace_users.user_id", ondelete="SET NULL"), nullable=True, index=True)
     name = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
+    is_archived = Column(Boolean, nullable=False, default=False, server_default="false")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     metadata_ = Column("metadata", JSON, default={})
 
-    owner = relationship("User", back_populates="projects")
     nodes = relationship("Node", back_populates="project", cascade="all, delete-orphan")
 
 

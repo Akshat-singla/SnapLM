@@ -4,17 +4,18 @@ import type { NodeData, Message } from '../types/node.types';
 import { canvasApi, nodesApi, projectsApi, type Project } from '../services/api/client';
 
 interface AppState {
+  archiveNodeBranch: (nodeId: string) => Promise<void>;
   // Canvas State
   nodes: Node<NodeData>[];
   edges: Edge[];
   isInitialized: boolean;
-  isReadOnly: boolean; // true when viewing a shared workspace
-  
+  isReadOnly: boolean;
+
   // Project State
   projects: Project[];
   currentProjectId: string | null;
   createProjectModalOpen: boolean;
-  
+
   // UI State
   selectedNodeId: string | null;
   expandedNodeId: string | null;
@@ -29,6 +30,8 @@ interface AppState {
   fetchProjects: () => Promise<void>;
   setCurrentProject: (id: string | null) => Promise<void>;
   createProject: (name: string, description?: string) => Promise<Project | null>;
+  archiveProject: (id: string) => Promise<void>;
+  unarchiveProject: (id: string) => Promise<void>;
   setCreateProjectModalOpen: (open: boolean) => void;
   createShareLink: () => Promise<string | null>;
   loadSharedWorkspace: (shareToken: string) => Promise<void>;
@@ -40,19 +43,19 @@ interface AppState {
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
   onConnect: (connection: Connection) => void;
-  
+
   addNode: (node: Node<NodeData>) => void;
   updateNode: (id: string, data: Partial<NodeData>) => void;
   removeNode: (id: string) => void;
-  
+
   setSelectedNode: (id: string | null) => void;
   setExpandedNode: (id: string | null) => void;
   setCreatingBranchNodeId: (id: string | null) => void;
   setMergingNodeId: (id: string | null) => void;
   setHighlightedPath: (path: string[]) => void;
-  
+
   addMessage: (nodeId: string, message: Message) => void;
-  
+
   addToast: (toast: { type: 'success' | 'error' | 'info'; message: string }) => void;
   removeToast: (id: string) => void;
 }
@@ -144,13 +147,11 @@ const useStore = create<AppState>((set, get) => ({
   edges: [],
   isInitialized: false,
   isReadOnly: false,
-  
-  // Project State
+
   projects: [],
   currentProjectId: null,
   createProjectModalOpen: false,
-  
-  // UI State
+
   selectedNodeId: null,
   expandedNodeId: null,
   creatingBranchNodeId: null,
@@ -160,7 +161,6 @@ const useStore = create<AppState>((set, get) => ({
   loading: {},
   toasts: [],
 
-  // Project Actions
   fetchProjects: async () => {
     try {
       set({ loading: { ...get().loading, projects: true } });
@@ -175,7 +175,7 @@ const useStore = create<AppState>((set, get) => ({
 
   setCurrentProject: async (id: string | null) => {
     set({ currentProjectId: id, nodes: [], edges: [], isInitialized: false, isReadOnly: false });
-    
+
     if (id) {
       try {
         set({ loading: { ...get().loading, nodes: true } });
@@ -204,6 +204,109 @@ const useStore = create<AppState>((set, get) => ({
       return null;
     }
   },
+
+  archiveProject: async (id: string) => {
+    const { projects, currentProjectId } = get();
+    const previousProjects = projects;
+
+    // Optimistic update for instant UI feedback.
+    const optimisticProjects = projects.map((project) =>
+      project.project_id === id ? { ...project, is_archived: true } : project
+    );
+    set({ projects: optimisticProjects });
+
+    if (currentProjectId === id) {
+      const nextActiveProject = optimisticProjects.find((project) => !project.is_archived);
+      await get().setCurrentProject(nextActiveProject?.project_id ?? null);
+    }
+
+    try {
+      const archivedProject = await projectsApi.archiveProject(id);
+      set({
+        projects: get().projects.map((project) =>
+          project.project_id === id
+            ? { ...project, ...archivedProject, is_archived: true }
+            : project
+        ),
+      });
+    } catch (error) {
+      console.error('Failed to archive project:', error);
+      try {
+        const refreshed = await projectsApi.getProjects();
+        set({ projects: refreshed });
+      } catch {
+        set({ projects: previousProjects });
+      }
+      get().addToast({ type: 'error', message: 'Archive update had a response error; list refreshed from server.' });
+    }
+  },
+
+  unarchiveProject: async (id: string) => {
+    const previousProjects = get().projects;
+
+    // Optimistic update for instant UI feedback.
+    set({
+      projects: previousProjects.map((project) =>
+        project.project_id === id ? { ...project, is_archived: false } : project
+      ),
+    });
+
+    try {
+      const unarchivedProject = await projectsApi.unarchiveProject(id);
+      set({
+        projects: get().projects.map((project) =>
+          project.project_id === id
+            ? { ...project, ...unarchivedProject, is_archived: false }
+            : project
+        ),
+      });
+    } catch (error) {
+      console.error('Failed to unarchive project:', error);
+      try {
+        const refreshed = await projectsApi.getProjects();
+        set({ projects: refreshed });
+      } catch {
+        set({ projects: previousProjects });
+      }
+      get().addToast({ type: 'error', message: 'Restore update had a response error; list refreshed from server.' });
+    }
+  },
+
+  //archive leaf nodes action
+  archiveNodeBranch: async (nodeId: string) => {
+  try {
+    const response = await fetch(`/api/v1/nodes/${nodeId}/archive`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    
+    if (!response.ok) throw new Error('Failed to archive node branch');
+    
+    const data = await response.json();
+    const archivedIds = new Set<string>(data.archived_node_ids ?? []);
+
+ set((state) => ({
+  selectedNodeId: nodeId,
+  nodes: state.nodes.map((node) =>
+    archivedIds.has(node.id)
+      ? {
+          ...node,
+          data: {
+            ...node.data,
+            isArchived: true, 
+          },
+        }
+      : node
+  ),
+}));
+
+    get().addToast({ type: 'success', message: 'Branch archived successfully' });
+  } catch (error) {
+    console.error('archiveNodeBranch error:', error);
+    get().addToast({ type: 'error', message: 'Failed to archive branch' });
+    throw error;
+  }
+},
 
   setCreateProjectModalOpen: (open: boolean) => {
     set({ createProjectModalOpen: open });
@@ -350,6 +453,7 @@ const useStore = create<AppState>((set, get) => ({
         project_id: projectId,
         name: meta?.project_name ? `${meta.project_name} (shared branch)` : 'Shared branch',
         description: null,
+        is_archived: false,
         created_at: new Date().toISOString(),
         updated_at: null,
         node_count: data.nodes.length,
@@ -406,13 +510,13 @@ fetchNodes: async () => {
       nodes: applyNodeChanges(changes, get().nodes),
     });
   },
-  
+
   onEdgesChange: (changes) => {
     set({
       edges: applyEdgeChanges(changes, get().edges),
     });
   },
-  
+
   onConnect: (connection) => {
     set({
       edges: addEdge({ ...connection, type: 'context' }, get().edges),
@@ -438,13 +542,13 @@ fetchNodes: async () => {
   removeNode: (id) => {
     const { nodes, edges } = get();
     const nodeToRemove = nodes.find(n => n.id === id);
-    
+
     // Prevent deleting root
     if (nodeToRemove?.data.nodeType === 'root') {
-        set((state) => ({ 
-             toasts: [...state.toasts, { id: 'root-delete-err', type: 'error', message: 'Cannot delete root node' }] 
-        }));
-        return;
+      set((state) => ({
+        toasts: [...state.toasts, { id: 'root-delete-err', type: 'error', message: 'Cannot delete root node' }]
+      }));
+      return;
     }
 
     // Find parent of the deleted node (Grandparent to children)
@@ -455,32 +559,29 @@ fetchNodes: async () => {
 
     // Re-parent children
     const updatedNodes = nodes
-        .filter(n => n.id !== id) // Remove target node
-        .map(n => {
-            if (n.data.parentId === id) {
-                return { 
-                    ...n, 
-                    data: { ...n.data, parentId: parentId || null } // Set to grandparent or null if no grandparent
-                };
-            }
-            return n;
-        });
+      .filter(n => n.id !== id) // Remove target node
+      .map(n => {
+        if (n.data.parentId === id) {
+          return {
+            ...n,
+            data: { ...n.data, parentId: parentId || null } // Set to grandparent or null if no grandparent
+          };
+        }
+        return n;
+      });
 
-    // Update Edges
-    // 1. Remove edges connected to deleted node
-    // 2. Add edges from Parent -> Children (if Parent exists)
     let updatedEdges = edges.filter(e => e.source !== id && e.target !== id);
 
     if (parentId) {
-        const newEdges = children.map(child => ({
-            id: `e-${parentId}-${child.id}`,
-            source: parentId,
-            target: child.id,
-            type: 'context',
-            animated: false,
-            style: { strokeWidth: 1.5 }
-        }));
-        updatedEdges = [...updatedEdges, ...newEdges];
+      const newEdges = children.map(child => ({
+        id: `e-${parentId}-${child.id}`,
+        source: parentId,
+        target: child.id,
+        type: 'context',
+        animated: false,
+        style: { strokeWidth: 1.5 }
+      }));
+      updatedEdges = [...updatedEdges, ...newEdges];
     }
 
     set({
@@ -493,11 +594,10 @@ fetchNodes: async () => {
 
   setSelectedNode: (id) => {
     set({ selectedNodeId: id });
-    
-    // Calculate context path (trace back to root)
+
     if (!id) {
-        set({ highlightedPath: [] });
-        return;
+      set({ highlightedPath: [] });
+      return;
     }
 
     const { nodes } = get();
@@ -505,9 +605,9 @@ fetchNodes: async () => {
     let currentId: string | null = id;
 
     while (currentId) {
-        path.unshift(currentId);
-        const node = nodes.find(n => n.id === currentId);
-        currentId = node?.data.parentId || null;
+      path.unshift(currentId);
+      const node = nodes.find(n => n.id === currentId);
+      currentId = node?.data.parentId || null;
     }
 
     set({ highlightedPath: path });
@@ -519,10 +619,10 @@ fetchNodes: async () => {
 
   addMessage: (nodeId, message) => {
     set((state) => ({
-        messages: {
-            ...state.messages,
-            [nodeId]: [...(state.messages[nodeId] || []), message]
-        }
+      messages: {
+        ...state.messages,
+        [nodeId]: [...(state.messages[nodeId] || []), message]
+      }
     }));
   },
 
