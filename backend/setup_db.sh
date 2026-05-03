@@ -28,4 +28,3 @@ else
 fi
 
 echo "Setup complete."
-EOF
