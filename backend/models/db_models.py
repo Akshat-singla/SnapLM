@@ -38,7 +38,7 @@ class PasskeyCredential(Base):
     __tablename__ = "passkey_credentials"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("workspace_users.user_id", ondelete="CASCADE"), nullable=False)
     credential_id = Column(String, nullable=False, unique=True, index=True) # Base64URL encoded credential ID
     public_key = Column(String, nullable=False) # Base64URL encoded public key
     sign_count = Column(Integer, default=0, nullable=False)
@@ -60,6 +60,7 @@ class Project(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     metadata_ = Column("metadata", JSON, default={})
 
+    owner = relationship("User", back_populates="projects", foreign_keys=[owner_id])
     nodes = relationship("Node", back_populates="project", cascade="all, delete-orphan")
 
 

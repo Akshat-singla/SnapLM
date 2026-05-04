@@ -6,7 +6,7 @@ import uuid
 import pyotp
 
 from database import get_db
-from models.user import AuthUser as User
+from models.db_models import User
 from utils.hashing import hash_password, verify_password
 from utils.token import create_access_token
 from config import settings
