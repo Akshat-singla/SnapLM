@@ -1,5 +1,5 @@
 export type NodeType = 'root' | 'standard' | 'exploration';
-export type NodeStatus = 'active' | 'frozen' | 'deleted';
+export type NodeStatus = 'active' | 'frozen' | 'deleted' | 'archived';
 
 export interface NodeData {
   title: string;
@@ -12,6 +12,7 @@ export interface NodeData {
   inheritedContext?: string;
   lastActivity: string;
   isReadOnly?: boolean; // true when viewing a shared workspace
+  isArchived?: boolean;
 }
 
 export interface Message {

@@ -158,6 +158,16 @@ export const nodesApi = {
     };
   },
 
+  archiveNodeBranch: async (nodeId: string): Promise<{ selected_node_id: string; archived_node_ids: string[] }> => {
+    const response = await api.post<{ selected_node_id: string; archived_node_ids: string[] }>(`/nodes/${nodeId}/archive`);
+    return response.data;
+  },
+
+  restoreNodeBranch: async (nodeId: string): Promise<{ selected_node_id: string; restored_node_ids: string[] }> => {
+    const response = await api.post<{ selected_node_id: string; restored_node_ids: string[] }>(`/nodes/${nodeId}/restore`);
+    return response.data;
+  },
+
   mergeNode: async (data: { sourceNodeId: string; targetNodeId: string; summary: string }) => {
     const payload = {
       source_node_id: data.sourceNodeId,

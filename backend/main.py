@@ -765,7 +765,9 @@ from crud.messages import create_message
 from crud.messages import get_messages as crud_get_messages
 from crud.nodes import (
     calculate_position,
+    get_node_ancestor_closure,
     get_node_by_id_or_404,
+    get_node_descendant_closure,
     get_node_lineage,
     update_node_status,
 )
@@ -941,39 +943,53 @@ async def create_node(
     )
 
     if request.initial_message:
-        # Build context BEFORE saving user message to avoid duplication in last_n_messages
-        chat_ctx = await context_manager.build_chat_context(session, node.node_id)
+        try:
+            # Build context BEFORE saving user message to avoid it appearing in last_n_messages
+            chat_ctx = await context_manager.build_chat_context(session, node.node_id)
 
-        user_msg_token_count = estimate_token_count(request.initial_message)
-        await create_message(
-            session, node.node_id, "user", request.initial_message, user_msg_token_count
-        )
-        await record_event(
-            session,
-            node.node_id,
-            "MESSAGE_ADDED",
-            {"role": "user", "context": "initial_focus"},
-        )
-
-        if node.node_type == "exploration":
-            response_text, _ = await llm_service.exploration_chat(
-                chat_ctx["system_prompt"], request.initial_message
+            user_msg_token_count = estimate_token_count(request.initial_message)
+            await create_message(
+                session, node.node_id, "user", request.initial_message, user_msg_token_count
             )
-        else:
-            response_text = await llm_service.chat(
-                chat_ctx["system_prompt"], request.initial_message
+            await record_event(
+                session,
+                node.node_id,
+                "MESSAGE_ADDED",
+                {"role": "user", "context": "initial_focus"},
             )
 
-        asst_token_count = estimate_token_count(response_text)
-        await create_message(
-            session, node.node_id, "assistant", response_text, asst_token_count
-        )
-        await record_event(
-            session,
-            node.node_id,
-            "MESSAGE_ADDED",
-            {"role": "assistant", "context": "initial_response"},
-        )
+            if node.node_type == "exploration":
+                response_text, _ = await llm_service.exploration_chat(
+                    chat_ctx["system_prompt"], request.initial_message
+                )
+            else:
+                response_text = await llm_service.chat(
+                    chat_ctx["system_prompt"], request.initial_message
+                )
+
+            asst_token_count = estimate_token_count(response_text)
+            await create_message(
+                session, node.node_id, "assistant", response_text, asst_token_count
+            )
+            await record_event(
+                session,
+                node.node_id,
+                "MESSAGE_ADDED",
+                {"role": "assistant", "context": "initial_response"},
+            )
+        except Exception as exc:
+            # Branch creation must still succeed even if the optional initial response fails.
+            logger.exception(
+                "Branch created but initial focus generation failed for node %s: %s",
+                node.node_id,
+                exc,
+            )
+            await record_event(
+                session,
+                node.node_id,
+                "INITIAL_MESSAGE_FAILED",
+                {"error": str(exc)},
+            )
 
     return NodeResponse(
         node_id=node.node_id,
@@ -1216,15 +1232,43 @@ async def delete_node(
 ):
     node = await get_node_by_id_or_404(session, node_id)
 
-    await record_event(session, node_id, "NODE_DELETED", {})
-    await update_node_status(session, node_id, "deleted")
+    # Root delete always cascades to the full downstream graph.
+    should_cascade = request.cascade or node.node_type == "root"
+    targets = (
+        await get_node_descendant_closure(session, node.node_id)
+        if should_cascade
+        else [node]
+    )
+
+    deleted_ids = []
+    seen: set[uuid.UUID] = set()
+    for item in targets:
+        if item.node_id in seen:
+            continue
+        seen.add(item.node_id)
+        deleted_ids.append(item.node_id)
+
+    for nid in deleted_ids:
+        await update_node_status(session, nid, "deleted")
+        await record_event(
+            session,
+            nid,
+            "NODE_DELETED",
+            {
+                "deleted_from": str(node_id),
+                "cascade": should_cascade,
+            },
+        )
 
     await soft_delete_edges(session, node_id)
+    await session.commit()
+
+    affected_descendants = [nid for nid in deleted_ids if nid != node_id]
     return DeleteResponse(
         node_id=node_id,
         status="deleted",
-        affected_descendants=[],
-        recomputed=False,
+        affected_descendants=affected_descendants,
+        recomputed=should_cascade,
         graph_edges_removed=0,
     )
 
@@ -1444,7 +1488,7 @@ async def get_inherited_context(
 # ========================
 
 from models.db_models import Project, SharedProject, User, WorkspaceShare
-from sqlalchemy import func as sql_func
+from sqlalchemy import delete, func as sql_func
 from sqlalchemy import or_, select
 
 
@@ -1504,18 +1548,13 @@ async def archive_node_branch(
 ):
     node = await get_node_by_id_or_404(session, node_id)
 
-    # lineage should include the node and its parents up to the root
-    lineage = await get_node_lineage(session, node.node_id)
+    # Collect every upstream contributor (graph traversal, not single-path lineage).
+    ancestor_closure = await get_node_ancestor_closure(session, node.node_id)
 
     archived_ids = []
     seen = set()
 
-    # always include selected node first
-    if node.node_id not in seen:
-        archived_ids.append(node.node_id)
-        seen.add(node.node_id)
-
-    for item in lineage:
+    for item in ancestor_closure:
         if item.node_id not in seen:
             archived_ids.append(item.node_id)
             seen.add(item.node_id)
@@ -1537,6 +1576,44 @@ async def archive_node_branch(
     return {
         "selected_node_id": str(node_id),
         "archived_node_ids": [str(nid) for nid in archived_ids],
+    }
+
+
+@app.post("/api/v1/nodes/{node_id}/restore")
+async def restore_node_branch(
+    node_id: uuid.UUID, session: AsyncSession = Depends(get_db)
+):
+    node = await get_node_by_id_or_404(session, node_id)
+
+    # Restore selected node plus all upstream contributors that were archived.
+    ancestor_closure = await get_node_ancestor_closure(session, node.node_id)
+
+    restored_ids = []
+    seen: set[uuid.UUID] = set()
+
+    for item in ancestor_closure:
+        if item.node_id in seen:
+            continue
+        seen.add(item.node_id)
+
+        if item.status == "archived":
+            await update_node_status(session, item.node_id, "active")
+            restored_ids.append(item.node_id)
+            await record_event(
+                session,
+                item.node_id,
+                "NODE_RESTORED",
+                {
+                    "restored_from": str(node_id),
+                    "branch_restore": True,
+                },
+            )
+
+    await session.commit()
+
+    return {
+        "selected_node_id": str(node_id),
+        "restored_node_ids": [str(nid) for nid in restored_ids],
     }
 
 
@@ -1658,8 +1735,39 @@ async def delete_project(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    await session.delete(project)
-    await session.commit()
+    try:
+        from models.db_models import KnowledgeGraph, Message, Node, NodeEvent, NodeSummary
+
+        node_ids_result = await session.execute(
+            select(Node.node_id).where(Node.project_id == project_id)
+        )
+        node_ids = [row[0] for row in node_ids_result.all()]
+
+        # Remove share snapshots/links first because they reference both project and node ids.
+        await session.execute(
+            delete(SharedProject).where(SharedProject.project_id == project_id)
+        )
+        await session.execute(
+            delete(WorkspaceShare).where(WorkspaceShare.project_id == project_id)
+        )
+
+        if node_ids:
+            await session.execute(
+                delete(KnowledgeGraph).where(KnowledgeGraph.source_node.in_(node_ids))
+            )
+            await session.execute(delete(Message).where(Message.node_id.in_(node_ids)))
+            await session.execute(
+                delete(NodeSummary).where(NodeSummary.node_id.in_(node_ids))
+            )
+            await session.execute(delete(NodeEvent).where(NodeEvent.node_id.in_(node_ids)))
+
+        await session.execute(delete(Node).where(Node.project_id == project_id))
+        await session.execute(delete(Project).where(Project.project_id == project_id))
+        await session.commit()
+    except Exception as exc:
+        await session.rollback()
+        logger.error(f"Failed to delete project {project_id}: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to delete project")
 
     logger.info(f"Deleted project: {project_id}")
 

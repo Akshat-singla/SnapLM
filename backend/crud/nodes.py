@@ -1,4 +1,5 @@
 import uuid
+from collections import defaultdict, deque
 
 from fastapi import HTTPException
 from models.db_models import Node
@@ -45,6 +46,100 @@ async def get_node_lineage(session: AsyncSession, node_id: uuid.UUID) -> list[No
         lineage.append(node)
         current_id = node.parent_id
     return lineage
+
+
+async def get_node_ancestor_closure(
+    session: AsyncSession, node_id: uuid.UUID
+) -> list[Node]:
+    """Returns selected node plus all unique upstream parents (including merge parents)."""
+    selected = await get_node(session, node_id)
+    if not selected:
+        return []
+
+    result = await session.execute(
+        select(Node).where(
+            Node.project_id == selected.project_id,
+            Node.status != "deleted",
+        )
+    )
+    project_nodes = result.scalars().all()
+
+    node_by_id = {n.node_id: n for n in project_nodes}
+    if node_id not in node_by_id:
+        return []
+
+    # Build child -> parents map from graph edges encoded on node rows.
+    parent_map: dict[uuid.UUID, set[uuid.UUID]] = defaultdict(set)
+    for node in project_nodes:
+        if node.parent_id and node.parent_id in node_by_id:
+            parent_map[node.node_id].add(node.parent_id)
+        if node.merge_parent_id and node.merge_parent_id in node_by_id:
+            parent_map[node.node_id].add(node.merge_parent_id)
+
+    visited: set[uuid.UUID] = set()
+    visit_order: list[uuid.UUID] = []
+    queue = deque([node_id])
+
+    while queue:
+        current_id = queue.popleft()
+        if current_id in visited:
+            continue
+
+        visited.add(current_id)
+        visit_order.append(current_id)
+
+        for parent_id in parent_map.get(current_id, set()):
+            if parent_id not in visited:
+                queue.append(parent_id)
+
+    return [node_by_id[nid] for nid in visit_order if nid in node_by_id]
+
+
+async def get_node_descendant_closure(
+    session: AsyncSession, node_id: uuid.UUID
+) -> list[Node]:
+    """Returns selected node plus all unique downstream children (including merge children)."""
+    selected = await get_node(session, node_id)
+    if not selected:
+        return []
+
+    result = await session.execute(
+        select(Node).where(
+            Node.project_id == selected.project_id,
+            Node.status != "deleted",
+        )
+    )
+    project_nodes = result.scalars().all()
+
+    node_by_id = {n.node_id: n for n in project_nodes}
+    if node_id not in node_by_id:
+        return []
+
+    # Build parent -> children map from graph edges encoded on node rows.
+    children_map: dict[uuid.UUID, set[uuid.UUID]] = defaultdict(set)
+    for node in project_nodes:
+        if node.parent_id and node.parent_id in node_by_id:
+            children_map[node.parent_id].add(node.node_id)
+        if node.merge_parent_id and node.merge_parent_id in node_by_id:
+            children_map[node.merge_parent_id].add(node.node_id)
+
+    visited: set[uuid.UUID] = set()
+    visit_order: list[uuid.UUID] = []
+    queue = deque([node_id])
+
+    while queue:
+        current_id = queue.popleft()
+        if current_id in visited:
+            continue
+
+        visited.add(current_id)
+        visit_order.append(current_id)
+
+        for child_id in children_map.get(current_id, set()):
+            if child_id not in visited:
+                queue.append(child_id)
+
+    return [node_by_id[nid] for nid in visit_order if nid in node_by_id]
 
 
 async def get_all_descendants(session: AsyncSession, node_id: uuid.UUID) -> list[Node]:

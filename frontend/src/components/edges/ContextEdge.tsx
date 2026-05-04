@@ -23,9 +23,13 @@ const ContextEdge = ({
   });
 
   const highlightedPath = useStore((state) => state.highlightedPath);
+  const highlightedEdges = useStore((state) => state.highlightedEdges);
   const selectedNodeId = useStore((state) => state.selectedNodeId);
 
-  const isHighlighted = highlightedPath.includes(source) && highlightedPath.includes(target);
+  const edgeKey = `${source}->${target}`;
+  const isHighlighted =
+    highlightedEdges.includes(edgeKey) ||
+    (highlightedPath.includes(source) && highlightedPath.includes(target));
   const isDimmed = selectedNodeId && !isHighlighted;
 
   return (

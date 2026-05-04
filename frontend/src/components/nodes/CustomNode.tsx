@@ -1,12 +1,11 @@
 //import { memo, useState } from 'react';
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
-import { Lock, Sparkles, Lightbulb, ChevronDown, Archive } from 'lucide-react';
+import { Lock, Sparkles, Lightbulb, ChevronDown, Archive, RotateCcw, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 import type { NodeData } from '../../types/node.types';
 import useStore from '../../store';
 import { nodesApi } from '../../services/api/client';
-import { getOutgoers } from 'reactflow';
 
 const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }) => {
   const isRoot = data.nodeType === 'root';
@@ -21,17 +20,12 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
   const selectedNodeId = useStore(state => state.selectedNodeId);
   const setSelectedNode = useStore(state => state.setSelectedNode);
   const archiveNodeBranch = useStore(state => state.archiveNodeBranch);
-  const nodes = useStore(state => state.nodes);
-  const edges = useStore(state => state.edges);
+  const restoreNodeBranch = useStore(state => state.restoreNodeBranch);
+  const deleteNodeBranch = useStore(state => state.deleteNodeBranch);
   //const [_isDeleting, setIsDeleting] = useState(false);
 
   const isHighlighted = highlightedPath.includes(id);
   const isDimmed = selectedNodeId && !isHighlighted;
-
-   // Check if this is a leaf node (no outgoing edges)
-  const currentNode = nodes.find(n => n.id === id);
-  const isLeaf = currentNode ? getOutgoers(currentNode, nodes, edges).length === 0 : false;
-
 
   const handleExpand = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -50,15 +44,22 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this node? Children will be re-parented.')) {
-      return;
-    }
-    
-   
+
+    const shouldCascadeDelete = isRoot;
+    const confirmMessage = shouldCascadeDelete
+      ? 'Delete the entire tree from this root node? This cannot be undone.'
+      : 'Are you sure you want to delete this node? Children will be re-parented.';
+
+    if (!confirm(confirmMessage)) return;
+
     try {
-      await nodesApi.deleteNode(id);
-      removeNode(id);
-      addToast({ type: 'success', message: 'Node deleted successfully' });
+      if (shouldCascadeDelete) {
+        await deleteNodeBranch(id, true);
+      } else {
+        await nodesApi.deleteNode(id);
+        removeNode(id);
+        addToast({ type: 'success', message: 'Node deleted successfully' });
+      }
     } catch (error) {
       console.error('Failed to delete node:', error);
       addToast({ type: 'error', message: 'Failed to delete node' });
@@ -72,7 +73,16 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
       await archiveNodeBranch(id);
     } catch (error) {
       console.error('Failed to archive branch:', error);
-      addToast({ type: 'error', message: 'Failed to archive branch' });
+    }
+  };
+
+  const handleRestoreBranch = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      setSelectedNode(id);
+      await restoreNodeBranch(id);
+    } catch (error) {
+      console.error('Failed to restore branch:', error);
     }
   };
 
@@ -88,15 +98,36 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
         isDimmed && "opacity-40 hover:opacity-100"
       )}
     >
+      {/* Root action: delete full tree */}
+      {isRoot && !data.isReadOnly && (
+        <button
+          onClick={handleDelete}
+          className="absolute right-2 top-10 rounded-md p-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors z-10"
+          title="Delete full tree"
+        >
+          <Trash2 size={14} />
+        </button>
+      )}
 
-         {/* Archive Button - Leaf Node Only */}
-      {isLeaf  && (data.status as string) !== 'archived' &&(
+      {/* Non-root action: archive */}
+      {!isRoot && !data.isReadOnly && (data.status as string) !== 'archived' &&(
         <button
           onClick={handleArchiveBranch}
           className="absolute right-2 top-2 rounded-md p-1 text-slate-400 hover:text-white hover:bg-surface-border transition-colors z-10"
           title="Archive this branch"
         >
           <Archive size={14} />
+        </button>
+      )}
+
+      {/* Non-root action: restore archived */}
+      {!isRoot && !data.isReadOnly && (data.status as string) === 'archived' &&(
+        <button
+          onClick={handleRestoreBranch}
+          className="absolute right-2 top-2 rounded-md p-1 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors z-10"
+          title="Restore archived branch"
+        >
+          <RotateCcw size={14} />
         </button>
       )}
 
@@ -195,13 +226,15 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
                 >
                   Merge
                 </button>
-                <button
-                  type="button"
-                  className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-bold py-1.5 rounded transition-colors"
-                  onClick={handleDelete}
-                >
-                  Delete
-                </button>
+                {!isRoot && (
+                  <button
+                    type="button"
+                    className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-bold py-1.5 rounded transition-colors"
+                    onClick={handleDelete}
+                  >
+                    Delete
+                  </button>
+                )}
               </>
             )}
           </div>
