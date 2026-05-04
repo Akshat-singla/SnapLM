@@ -97,6 +97,25 @@ const formatInheritedContext = (ctx: Record<string, unknown> | null | undefined)
   return parts.join(' | ');
 };
 
+const buildPathToNode = (nodes: Node<NodeData>[], targetId: string | null | undefined): string[] => {
+  if (!targetId) return [];
+
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+  const path: string[] = [];
+  const visited = new Set<string>();
+  let currentId: string | null = targetId;
+
+  while (currentId) {
+    if (visited.has(currentId)) break;
+    visited.add(currentId);
+    path.unshift(currentId);
+    const current = nodeById.get(currentId);
+    currentId = current?.data.parentId || null;
+  }
+
+  return path;
+};
+
 // Helper to build edges from nodes based on parent-child relationships
 const buildEdgesFromNodes = (nodes: Node<NodeData>[]): Edge[] => {
   const edges: Edge[] = [];
@@ -550,6 +569,8 @@ const useStore = create<AppState>((set, get) => ({
       const existingProjects = get().projects;
       const hasProject = existingProjects.some((p) => p.project_id === project.project_id);
       const projects = hasProject ? existingProjects : [project, ...existingProjects];
+      const selectedNodeId = meta?.root_node_id ?? null;
+      const highlightedPath = buildPathToNode(nodes, selectedNodeId);
 
       set({
         projects,
@@ -557,6 +578,8 @@ const useStore = create<AppState>((set, get) => ({
         nodes,
         edges,
         messages: mappedMessages,
+        selectedNodeId,
+        highlightedPath,
         isInitialized: true,
         isReadOnly: true,
         loading: { ...get().loading, sharedBranch: false },

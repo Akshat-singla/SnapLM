@@ -67,8 +67,9 @@ const ShareBranchModal = ({ open, onClose }: ShareBranchModalProps) => {
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           <p className="text-sm text-slate-400">
-            Shares the selected node and all upstream contributors (all parent and merge-parent
-            paths that lead into it). Only connected nodes and edges are included.
+            Shares the full lineage from root to the selected node, plus all descendants of the
+            selected node. Sibling and unrelated branches are excluded; messages and positions are
+            included.
           </p>
           <div>
             <label className="block text-xs text-slate-400 mb-1">Share with (user id or label)</label>
