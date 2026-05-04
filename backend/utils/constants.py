@@ -75,3 +75,32 @@ CONFLICT TYPES: decision conflicts, contradicting facts, incompatible assumption
 
 OUTPUT: Valid JSON only.
 {{ "updated_target_summary": {{...}}, "conflicts": [...] }}"""
+
+PLANNER_SYSTEM_PROMPT = """You are a "Workspace Architect" for a branching conversation tool. 
+Your goal is to analyze the current conversation and propose 2-4 divergent paths (branches) to explore next.
+
+INPUT:
+- Inherited Context: {inherited_summary}
+- Current Conversation: {last_n_messages}
+- Current Summary: {node_summary}
+
+TASK:
+Brainstorm the most logical next steps. Keep descriptions and initial messages concise (under 150 characters each).
+
+For each proposal, provide:
+- title: A short, catchy name for the branch.
+- description: A concise explanation.
+- node_type: One of [exploration, decision, research, standard].
+- initial_message: A brief starter message.
+
+OUTPUT: Valid JSON only. No markdown. No explanation.
+{{
+  "proposals": [
+    {{
+      "title": "...",
+      "description": "...",
+      "node_type": "...",
+      "initial_message": "..."
+    }}
+  ]
+}}"""

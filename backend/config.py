@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     jwt_secret : str = "sample-secret"
 
+    CF_ACCOUNT_ID: str = "NULL"
+    CF_API_TOKEN: str = "NULLo"
+    CF_MODEL: str = "@cf/mistral/mistral-7b-instruct-v0.1"
     MODEL_MAIN_REASONER: str = "main-reasoner"
     MODEL_GRAPH_BUILDER: str = "graph-builder"
 

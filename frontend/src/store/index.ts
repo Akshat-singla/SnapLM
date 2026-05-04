@@ -1,10 +1,15 @@
 import { create } from 'zustand';
 import { type Node, type Edge, type Connection, addEdge, applyNodeChanges, applyEdgeChanges, type NodeChange, type EdgeChange } from 'reactflow';
 import type { NodeData, Message } from '../types/node.types';
-import { canvasApi, nodesApi, projectsApi, type Project } from '../services/api/client';
+import { canvasApi, nodesApi, projectsApi, type Project, authApi, type User, type BranchProposal, default as api } from '../services/api/client';
 
 interface AppState {
   archiveNodeBranch: (nodeId: string) => Promise<void>;
+  // Auth State
+  user: User | null;
+  isAuthenticated: boolean;
+  authLoading: boolean;
+
   restoreNodeBranch: (nodeId: string) => Promise<void>;
   deleteNodeBranch: (nodeId: string, cascade?: boolean) => Promise<void>;
   // Canvas State
@@ -29,6 +34,18 @@ interface AppState {
   loading: Record<string, boolean>; // generic loading states by key
   toasts: Array<{ id: string; type: 'success' | 'error' | 'info'; message: string }>;
 
+  // Agentic branching state
+  agenticProposals: BranchProposal[];
+  agenticProposalsLoading: boolean;
+  agenticProposingNodeId: string | null;
+
+  // Auth Actions
+  login: (email: string, password: string) => Promise<{ success: boolean; code?: string; tempToken?: string }>;
+  signup: (email: string, password: string) => Promise<{ success: boolean; code?: string; tempToken?: string }>;
+  verify2FA: (code: string, tempToken: string) => Promise<{ success: boolean; code?: string }>;
+  logout: () => void;
+  checkAuth: () => Promise<void>;
+
   // Project Actions
   fetchProjects: () => Promise<void>;
   setCurrentProject: (id: string | null) => Promise<void>;
@@ -36,10 +53,13 @@ interface AppState {
   archiveProject: (id: string) => Promise<void>;
   unarchiveProject: (id: string) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
+  deleteAccount: () => Promise<void>;
   setCreateProjectModalOpen: (open: boolean) => void;
   createShareLink: () => Promise<string | null>;
   loadSharedWorkspace: (shareToken: string) => Promise<void>;
   loadSharedBranch: (shareId: string) => Promise<void>;
+  saveViewport: (projectId: string, viewport: { x: number; y: number; zoom: number }) => void;
+  getViewport: (projectId: string) => { x: number; y: number; zoom: number } | null;
 
   // Node Actions
   fetchNodes: () => Promise<void>;
@@ -62,6 +82,11 @@ interface AppState {
 
   addToast: (toast: { type: 'success' | 'error' | 'info'; message: string }) => void;
   removeToast: (id: string) => void;
+
+  // Agentic branching actions
+  agenticProposeBranches: (nodeId: string) => Promise<void>;
+  agenticExecuteBranches: (parentId: string, selectedProposals: BranchProposal[]) => Promise<void>;
+  clearAgenticProposals: () => void;
 }
 
 // Converts inherited_context JSON into a readable summary string for display
@@ -147,6 +172,13 @@ const buildEdgesFromNodes = (nodes: Node<NodeData>[]): Edge[] => {
 };
 
 const useStore = create<AppState>((set, get) => ({
+  user: null,
+  isAuthenticated: false,
+  authLoading: true,
+
+  restoreNodeBranch: async () => {},
+  deleteNodeBranch: async () => {},
+
   nodes: [],
   edges: [],
   isInitialized: false,
@@ -165,6 +197,93 @@ const useStore = create<AppState>((set, get) => ({
   messages: {},
   loading: {},
   toasts: [],
+
+  agenticProposals: [],
+  agenticProposalsLoading: false,
+  agenticProposingNodeId: null,
+
+  login: async (email, password) => {
+    try {
+      set({ authLoading: true });
+      const response = await authApi.login(email, password);
+
+      if (response.requires_2fa) {
+        set({ authLoading: false });
+        return { success: false, code: 'requires_2fa', tempToken: response.temp_token };
+      }
+
+      set({
+        user: response.user,
+        isAuthenticated: true,
+        authLoading: false
+      });
+      get().addToast({ type: 'success', message: 'Welcome back!' });
+      return { success: true };
+    } catch (error: any) {
+      console.error('Login failed:', error);
+      const detail = error.response?.data?.detail;
+      set({ authLoading: false });
+      if (detail === 'Invalid credentials') {
+        return { success: false, code: 'invalid_credentials' };
+      }
+      get().addToast({ type: 'error', message: 'Something went wrong' });
+      return { success: false, code: 'error' };
+    }
+  },
+
+  verify2FA: async (code: string, tempToken: string) => {
+    try {
+      set({ authLoading: true });
+      const response = await authApi.verify2FA(code, tempToken);
+      set({
+        user: response.user,
+        isAuthenticated: true,
+        authLoading: false
+      });
+      get().addToast({ type: 'success', message: 'Signed in securely!' });
+      return { success: true };
+    } catch (error: any) {
+      console.error('2FA verification failed:', error);
+      set({ authLoading: false });
+      return { success: false, code: 'invalid_code' };
+    }
+  },
+
+  signup: async (email, password) => {
+    try {
+      set({ authLoading: true });
+      await authApi.register(email, password);
+      // Automatically login after signup
+      return await get().login(email, password);
+    } catch (error: any) {
+      console.error('Signup failed:', error);
+      const detail = error.response?.data?.detail;
+      set({ authLoading: false });
+
+      if (detail === 'User already exists') {
+        return { success: false, code: 'user_exists' };
+      }
+
+      get().addToast({ type: 'error', message: 'Registration failed' });
+      return { success: false, code: 'error' };
+    }
+  },
+
+  logout: () => {
+    authApi.logout();
+    set({ user: null, isAuthenticated: false, projects: [], currentProjectId: null });
+    get().addToast({ type: 'info', message: 'Logged out successfully' });
+  },
+
+  checkAuth: async () => {
+    try {
+      set({ authLoading: true });
+      const user = await authApi.getMe();
+      set({ user, isAuthenticated: true, authLoading: false });
+    } catch (error) {
+      set({ user: null, isAuthenticated: false, authLoading: false });
+    }
+  },
 
   fetchProjects: async () => {
     try {
@@ -304,7 +423,17 @@ const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  //archive leaf nodes action
+  deleteAccount: async () => {
+    try {
+      await authApi.deleteAccount();
+      get().logout();
+      get().addToast({ type: 'success', message: 'Account deleted successfully' });
+    } catch (error) {
+      console.error('Failed to delete account:', error);
+      get().addToast({ type: 'error', message: 'Failed to delete account' });
+    }
+  },
+
   archiveNodeBranch: async (nodeId: string) => {
     try {
       const data = await nodesApi.archiveNodeBranch(nodeId);
@@ -428,7 +557,7 @@ const useStore = create<AppState>((set, get) => ({
 
     try {
       const response = await projectsApi.createProjectShare(currentProjectId);
-      const shareLink = `${window.location.origin}/shared/${response.share_token}`;
+      const shareLink = `${window.location.origin}/app/shared/${response.share_token}`;
       try {
         await navigator.clipboard.writeText(shareLink);
         get().addToast({ type: 'success', message: 'Share link copied to clipboard' });
@@ -441,7 +570,7 @@ const useStore = create<AppState>((set, get) => ({
       get().addToast({ type: 'error', message: 'Failed to create share link' });
       return null;
     }
-},
+  },
 
   loadSharedWorkspace: async (shareToken: string) => {
     try {
@@ -508,7 +637,7 @@ const useStore = create<AppState>((set, get) => ({
       set({ loading: { ...get().loading, sharedBranch: true } });
       const data = await canvasApi.importBranch(shareId);
 
-      const nodes: Node<NodeData>[] = data.nodes.map((n) => ({
+      const nodes: Node<NodeData>[] = data.nodes.map((n: any) => ({
         id: n.node_id,
         position: n.position || { x: 0, y: 0 },
         type: 'custom',
@@ -528,23 +657,23 @@ const useStore = create<AppState>((set, get) => ({
 
       const edges: Edge[] =
         data.edges && data.edges.length > 0
-          ? data.edges.map((e) => ({
-              id: e.id,
-              source: e.source,
-              target: e.target,
-              type: 'context',
-              animated: false,
-              style:
-                e.type === 'merge'
-                  ? { strokeWidth: 1.5, strokeDasharray: '5,5' }
-                  : { strokeWidth: 1.5 },
-            }))
+          ? data.edges.map((e: any) => ({
+            id: e.id,
+            source: e.source,
+            target: e.target,
+            type: 'context',
+            animated: false,
+            style:
+              e.type === 'merge'
+                ? { strokeWidth: 1.5, strokeDasharray: '5,5' }
+                : { strokeWidth: 1.5 },
+          }))
           : buildEdgesFromNodes(nodes);
 
       const mappedMessages = Object.fromEntries(
-        Object.entries(data.messages).map(([nodeId, msgs]) => [
+        Object.entries(data.messages).map(([nodeId, msgs]: [string, any]) => [
           nodeId,
-          msgs.map((m) => ({
+          msgs.map((m: any) => ({
             id: m.message_id,
             role: m.role as Message['role'],
             content: m.content,
@@ -594,7 +723,7 @@ const useStore = create<AppState>((set, get) => ({
   },
 
   // Node Actions
-fetchNodes: async () => {
+  fetchNodes: async () => {
     try {
       set({ loading: { ...get().loading, nodes: true } });
       const nodes = await nodesApi.getNodes();
@@ -652,9 +781,7 @@ fetchNodes: async () => {
 
     // Prevent deleting root
     if (nodeToRemove?.data.nodeType === 'root') {
-      set((state) => ({
-        toasts: [...state.toasts, { id: 'root-delete-err', type: 'error', message: 'Cannot delete root node' }]
-      }));
+      get().addToast({ type: 'error', message: 'Cannot delete root node' });
       return;
     }
 
@@ -743,6 +870,58 @@ fetchNodes: async () => {
   setExpandedNode: (id) => set({ expandedNodeId: id }),
   setCreatingBranchNodeId: (id) => set({ creatingBranchNodeId: id }),
   setMergingNodeId: (id) => set({ mergingNodeId: id }),
+
+  agenticProposeBranches: async (nodeId: string) => {
+    set({ agenticProposalsLoading: true, agenticProposingNodeId: nodeId, agenticProposals: [] });
+    try {
+      const result = await nodesApi.proposeBranches(nodeId);
+      set({ agenticProposals: result.proposals, agenticProposalsLoading: false });
+    } catch (error) {
+      console.error('Failed to propose branches:', error);
+      get().addToast({ type: 'error', message: 'AI failed to generate branch suggestions' });
+      set({ agenticProposalsLoading: false });
+    }
+  },
+
+  agenticExecuteBranches: async (parentId: string, selectedProposals: BranchProposal[]) => {
+    const { currentProjectId } = get();
+    if (!currentProjectId) return;
+    set({ loading: { ...get().loading, executeBranches: true } });
+    try {
+      const createdNodes = await nodesApi.executeBranches({
+        project_id: currentProjectId,
+        parent_id: parentId,
+        selected_proposals: selectedProposals,
+      });
+      for (const n of createdNodes) {
+        get().addNode({
+          id: n.node_id,
+          type: 'custom',
+          position: n.position || { x: 0, y: 0 },
+          data: {
+            title: n.title,
+            nodeType: n.node_type,
+            status: n.status,
+            parentId: n.parent_id,
+            mergeParentId: n.merge_parent_id || null,
+            messageCount: 1, // the AI starter message
+            tokenCount: 0,
+            inheritedContext: '',
+            lastActivity: n.created_at,
+          },
+        });
+      }
+      get().addToast({ type: 'success', message: `Created ${createdNodes.length} AI-suggested branch${createdNodes.length !== 1 ? 'es' : ''}` });
+      set({ agenticProposals: [], agenticProposingNodeId: null });
+    } catch (error) {
+      console.error('Failed to execute branches:', error);
+      get().addToast({ type: 'error', message: 'Failed to create AI-suggested branches' });
+    } finally {
+      set({ loading: { ...get().loading, executeBranches: false } });
+    }
+  },
+
+  clearAgenticProposals: () => set({ agenticProposals: [], agenticProposingNodeId: null, agenticProposalsLoading: false }),
   setHighlightedPath: (path) => set({ highlightedPath: path }),
 
   addMessage: (nodeId, message) => {
@@ -762,6 +941,13 @@ fetchNodes: async () => {
 
   removeToast: (id) => {
     set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
+  },
+  saveViewport: (projectId, viewport) => {
+    localStorage.setItem(`viewport-${projectId}`, JSON.stringify(viewport));
+  },
+  getViewport: (projectId) => {
+    const saved = localStorage.getItem(`viewport-${projectId}`);
+    return saved ? JSON.parse(saved) : null;
   },
 }));
 

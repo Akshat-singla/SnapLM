@@ -1,0 +1,93 @@
+import { createBrowserRouter } from "react-router-dom";
+
+import RootLayout from "./layouts/RootLayout";
+import AppPage from "./pages/app/Main";
+import ProfilePageRoute from "./pages/app/Profile";
+import SharedPage from "./pages/app/Shared";
+import SettingsPageRoute from "./pages/app/Settings";
+import BranchPage from "./pages/app/Branch";
+import HomePage from "./pages/Home";
+import ChangelogPage from "./pages/Changelog";
+
+// AUTH
+import AuthLayout from "./layouts/AuthLayout";
+import Login from "./pages/auth/Login";
+import Signup from "./pages/auth/Signup";
+import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
+import OTPAuth from "./pages/auth/OTPAuth";
+import PasskeyLogin from "./pages/auth/PasskeyLogin";
+import { RobotProvider } from "./context/robotProvider";
+
+import Protected from "./components/Protected";
+
+export const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <HomePage />,
+  },
+  {
+    path: "/changelog",
+    element: <ChangelogPage />,
+  },
+
+  // AUTH ROUTES
+  {
+    path: "/auth",
+    element: <RobotProvider><AuthLayout /></RobotProvider>,
+    children: [
+      {
+        path: "login",
+        element: <Login />,
+      },
+      {
+        path: "signup",
+        element: <Signup />,
+      },
+      {
+        path: "forgot",
+        element: <ForgotPassword />,
+      },
+      {
+        path: "reset",
+        element: <ResetPassword />,
+      },
+      {
+        path: "2FA",
+        element: <OTPAuth />,
+      },
+      {
+        path: "passkey",
+        element: <PasskeyLogin />,
+      },
+    ],
+  },
+
+  // APP ROUTES
+  {
+    path: "/app",
+    element: <Protected><RootLayout /></Protected>,
+    children: [
+      {
+        index: true,
+        element: <AppPage />,
+      },
+      {
+        path: "profile",
+        element: <ProfilePageRoute />,
+      },
+      {
+        path: "settings",
+        element: <SettingsPageRoute />,
+      },
+      {
+        path: "shared/:shareId",
+        element: <SharedPage />,
+      },
+      {
+        path: "branch/:branchShareId",
+        element: <BranchPage />,
+      },
+    ],
+  },
+]);

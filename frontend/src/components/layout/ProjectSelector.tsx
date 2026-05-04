@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { FolderOpen, Plus, ChevronDown } from 'lucide-react';
 import useStore from '../../store';
-import { spaNavigate } from '../../utils/spaNavigation';
+import { useNavigate } from 'react-router-dom';
 
 const ProjectSelector = () => {
   const { 
@@ -13,6 +13,7 @@ const ProjectSelector = () => {
     loading 
   } = useStore();
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -76,7 +77,7 @@ const ProjectSelector = () => {
               <button
                 key={project.project_id}
                 onClick={() => {
-                  spaNavigate('/');
+                  navigate('/');
                   void setCurrentProject(project.project_id);
                   setIsOpen(false);
                 }}

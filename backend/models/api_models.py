@@ -197,3 +197,23 @@ class BranchGraphPayload(BaseModel):
 
 # Recursive model update
 TreeNodeResponse.model_rebuild()
+
+
+# Agentic Branching Models
+class BranchProposal(BaseModel):
+    title: str
+    node_type: str = "exploration"
+    initial_message: str = "Let's explore this path."
+    description: str = "An alternative approach."
+
+class ProposeBranchesRequest(BaseModel):
+    node_id: UUID
+
+class ProposeBranchesResponse(BaseModel):
+    node_id: UUID
+    proposals: List[BranchProposal]
+
+class ExecuteBranchesRequest(BaseModel):
+    project_id: UUID
+    parent_id: UUID
+    selected_proposals: List[BranchProposal]

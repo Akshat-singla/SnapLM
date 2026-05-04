@@ -14,6 +14,7 @@ const Sidebar = () => {
     setCurrentProject,
     archiveProject,
     unarchiveProject,
+    loading,
     deleteProject,
   } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
@@ -54,7 +55,7 @@ const Sidebar = () => {
             <Search size={20} />
           </div>
           <input
-            className="block w-full rounded-lg border-none bg-surface-border py-2 pl-10 pr-3 text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-primary focus:bg-[#1f242e] transition-all"
+            className="block w-full rounded-lg border-none bg-surface-border py-2 pl-10 pr-3 text-sm text-white placeholder:text-slate-500 focus:ring-1 focus:ring-primary focus:bg-surface-focus transition-all"
             placeholder="Search nodes..."
             type="text"
             value={searchTerm}
@@ -69,7 +70,13 @@ const Sidebar = () => {
           <div className="px-3 pb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Projects</div>
 
           <div className="space-y-1 px-1">
-            {activeProjects.length > 0 ? (
+            {loading.projects ? (
+              <>
+                <div className="h-8 w-full bg-white/5 animate-pulse rounded-lg mb-1" />
+                <div className="h-8 w-full bg-white/5 animate-pulse rounded-lg mb-1" />
+                <div className="h-8 w-full bg-white/5 animate-pulse rounded-lg" />
+              </>
+            ) : activeProjects.length > 0 ? (
               activeProjects.map((project) => (
                 <div
                   key={project.project_id}
@@ -143,7 +150,7 @@ const Sidebar = () => {
                           e.stopPropagation();
                           await unarchiveProject(project.project_id);
                         }}
-                        className="text-xs text-primary hover:text-blue-400 transition-colors"
+                        className="text-xs text-primary hover:text-primary-hover transition-colors"
                         title="Move back to active projects"
                       >
                         Restore
@@ -204,17 +211,17 @@ const Sidebar = () => {
           </AnimatePresence>
         </div>
 
-        <a className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-border text-slate-300 hover:text-white transition-colors" href="#">
+        {/* <a className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-border text-slate-300 hover:text-white transition-colors" href="#">
           <Clock size={20} />
           <span className="text-sm font-medium">Recent Thoughts</span>
-        </a>
-        <a className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-border text-slate-300 hover:text-white transition-colors" href="#">
+        </a> */}
+        {/* <a className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-border text-slate-300 hover:text-white transition-colors" href="#">
           <Bookmark size={20} />
           <span className="text-sm font-medium">Bookmarks</span>
-        </a>
+        </a> */}
 
         <div className="my-4 border-t border-surface-border/50 mx-3"></div>
-        <div className="px-3 pb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Shared Spaces</div>
+        {/* <div className="px-3 pb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Shared Spaces</div>
 
         <a className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-border text-slate-300 hover:text-white transition-colors" href="#">
           <Share2 size={20} />
@@ -223,7 +230,7 @@ const Sidebar = () => {
         <a className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-border text-slate-300 hover:text-white transition-colors" href="#">
           <Archive size={20} />
           <span className="text-sm font-medium">Archive</span>
-        </a>
+        </a> */}
       </nav>
 
       <div className="p-4 border-t border-surface-border/50">

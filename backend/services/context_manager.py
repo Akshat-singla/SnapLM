@@ -3,7 +3,8 @@ from crud.messages import get_last_n_messages, get_messages
 from crud.summaries import get_latest_summary
 from services.graph_service import get_node_graph, get_parent_graph
 from utils.constants import (CHAT_SYSTEM_PROMPT, SUMMARIZER_SYSTEM_PROMPT,
-                              GRAPH_BUILDER_SYSTEM_PROMPT, MERGE_SYSTEM_PROMPT)
+                              GRAPH_BUILDER_SYSTEM_PROMPT, MERGE_SYSTEM_PROMPT,
+                              PLANNER_SYSTEM_PROMPT)
 from utils.helpers import format_summary, format_graph, format_messages, extract_key_points
 from config import settings
 import json
@@ -112,81 +113,57 @@ class ContextManager:
         
         return snapshot
 
-    async def build_chat_context(self, session, node_id: str) -> dict:
-        """Returns {"system_prompt": str} for chat agent."""
+    async def _get_context_components(self, session, node_id: str) -> dict:
+        """Internal helper to get raw context strings for any agent."""
         node = await get_node(session, node_id)
         lineage = await get_node_lineage(session, node_id)
-
-        # lineage[0] = current node, lineage[1] = parent, lineage[2] = grandparent...
+        
         inherited_summary = ""
-
-        # PRIORITY 1: Use stored inherited_context snapshot (frozen at branch creation)
         if node and node.inherited_context:
             ctx = node.inherited_context
-
             if ctx.get("facts"):
                 inherited_summary += "=== INHERITED FACTS ===\n"
                 for fact in ctx["facts"]:
                     f = fact.get("fact", str(fact)) if isinstance(fact, dict) else str(fact)
                     inherited_summary += f"- {f}\n"
-
             if ctx.get("decisions"):
                 inherited_summary += "\n=== CONFIRMED DECISIONS ===\n"
                 for dec in ctx["decisions"]:
                     d = dec.get("decision", str(dec)) if isinstance(dec, dict) else str(dec)
                     inherited_summary += f"- [DECISION] {d}\n"
-
-            if ctx.get("key_entities"):
-                inherited_summary += f"\n=== KEY ENTITIES ===\n{', '.join(ctx['key_entities'][:20])}\n"
-
-            if ctx.get("open_questions"):
-                inherited_summary += "\n=== OPEN QUESTIONS ===\n"
-                for q in ctx["open_questions"][:5]:
-                    inherited_summary += f"- {q}\n"
-
-            # Fallback to conversation history if no structured data
             if not ctx.get("facts") and not ctx.get("decisions") and ctx.get("conversation_history"):
                 inherited_summary += "\n=== PREVIOUS CONVERSATION (from parent branch) ===\n"
-                parent_title = ctx.get("parent_title", "Parent")
-                inherited_summary += f"Context from: {parent_title}\n\n"
                 for msg in ctx["conversation_history"]:
-                    role = msg.get("role", "unknown")
-                    content = msg.get("content", "")
-                    inherited_summary += f"[{role}]: {content}\n\n"
-
-        # PRIORITY 2: Walk ancestors from parent → root, most recent first
+                    inherited_summary += f"[{msg.get('role')}]: {msg.get('content')}\n\n"
         elif len(lineage) > 1:
-            has_any_context = False
-            # lineage[1:] = [parent, grandparent, ...], iterate in that order (parent first)
             for ancestor in lineage[1:]:
                 summary = await get_latest_summary(session, ancestor.node_id)
                 if summary:
                     inherited_summary += f"\n--- From: {ancestor.title} ---\n"
                     inherited_summary += extract_key_points(summary.summary) + "\n"
-                    has_any_context = True
-
-            # If still no summaries, pull raw messages from direct parent
-            if not has_any_context:
-                parent = lineage[1]
-                parent_messages = await get_messages(session, parent.node_id)
-                if parent_messages:
-                    inherited_summary += f"\n=== PREVIOUS CONVERSATION (from {parent.title}) ===\n"
-                    for msg in parent_messages[-10:]:
-                        if msg.role in ("user", "assistant"):
-                            content = msg.content[:500] + "..." if len(msg.content) > 500 else msg.content
-                            inherited_summary += f"[{msg.role}]: {content}\n\n"
 
         node_summary = await get_latest_summary(session, node_id)
-        node_graph = await get_node_graph(session, node_id)
         recent = await get_last_n_messages(session, node_id, n=settings.CHAT_RECENT_MESSAGES)
+        
+        return {
+            "node": node,
+            "inherited_summary": inherited_summary or "No parent context.",
+            "node_summary": format_summary(node_summary.summary) if node_summary else "No summary yet.",
+            "last_n_messages": format_messages(recent)
+        }
+
+    async def build_chat_context(self, session, node_id: str) -> dict:
+        """Returns {"system_prompt": str} for chat agent."""
+        comps = await self._get_context_components(session, node_id)
+        node_graph = await get_node_graph(session, node_id)
 
         system_prompt = CHAT_SYSTEM_PROMPT.format(
-            inherited_summary=inherited_summary or "(This is the root of the conversation tree - no parent context exists yet)",
-            node_summary=format_summary(node_summary.summary) if node_summary else "No summary yet.",
+            inherited_summary=comps["inherited_summary"],
+            node_summary=comps["node_summary"],
             node_graph=format_graph(node_graph) if node_graph else "No graph yet.",
-            last_n_messages=format_messages(recent),
-            node_title=node.title if node else "Unknown",
-            node_type=node.node_type if node else "standard"
+            last_n_messages=comps["last_n_messages"],
+            node_title=comps["node"].title if comps["node"] else "Unknown",
+            node_type=comps["node"].node_type if comps["node"] else "standard"
         )
         return {"system_prompt": system_prompt}
 
@@ -237,5 +214,16 @@ class ContextManager:
             source_recent_chats=format_messages(source_recent) if source_recent else "No recent chats."
         )
         return {"system_prompt": system_prompt, "user_content": ""}
+
+    async def build_planner_context(self, session, node_id: str) -> dict:
+        """Returns context for planner agent to suggest branches."""
+        comps = await self._get_context_components(session, node_id)
+        
+        system_prompt = PLANNER_SYSTEM_PROMPT.format(
+            inherited_summary=comps["inherited_summary"],
+            last_n_messages=comps["last_n_messages"],
+            node_summary=comps["node_summary"]
+        )
+        return {"system_prompt": system_prompt}
 
 context_manager = ContextManager()
