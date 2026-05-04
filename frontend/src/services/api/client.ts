@@ -2,9 +2,7 @@ import axios from 'axios';
 import type { NodeData, CreateNodeRequest, Message, NodeStatus, NodeType } from '../../types/node.types';
 import type { Node } from 'reactflow';
 
-
-
-export const USER_ID_STORAGE_KEY = 'snaplm_user_id';
+export const AUTH_TOKEN_KEY = 'snaplm_auth_token';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/v1',
@@ -14,17 +12,25 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const id = localStorage.getItem(USER_ID_STORAGE_KEY);
-  if (id) {
-    const h = config.headers;
-    if (typeof (h as { set?: (k: string, v: string) => void }).set === 'function') {
-      (h as { set: (k: string, v: string) => void }).set('X-User-Id', id);
-    } else {
-      (config.headers as Record<string, string>)['X-User-Id'] = id;
-    }
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
+
+// Add response interceptor to handle 401s
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      // Optional: redirect to login
+      // window.location.href = '/auth/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
 interface TreeNodeResponse {
   node_id: string;
@@ -216,7 +222,28 @@ export const nodesApi = {
     const response = await api.patch(`/nodes/${nodeId}/position`, { x, y });
     return response.data;
   },
+
+  proposeBranches: async (nodeId: string): Promise<{ node_id: string; proposals: BranchProposal[] }> => {
+    const response = await api.post('/nodes/propose-branches', { node_id: nodeId });
+    return response.data;
+  },
+
+  executeBranches: async (payload: {
+    project_id: string;
+    parent_id: string;
+    selected_proposals: BranchProposal[];
+  }): Promise<any[]> => {
+    const response = await api.post('/nodes/execute-branches', payload);
+    return response.data;
+  },
 };
+
+export interface BranchProposal {
+  title: string;
+  node_type: string;
+  initial_message: string;
+  description: string;
+}
 
 // Project Types
 export interface Project {
@@ -321,56 +348,103 @@ export const projectsApi = {
   },
 };
 
-export interface UserProfile {
-  user_id: string;
-  username: string;
+export interface User {
+  id: string;
   email: string;
-  created_at: string;
-  projects: Project[];
+  username?: string;
+  created_at?: string;
+  is_2fa_enabled?: boolean;
 }
 
-export interface BranchShareNodePayload {
-  node_id: string;
-  title: string;
-  status: NodeStatus;
-  node_type: NodeType;
-  parent_id: string | null;
-  merge_parent_id?: string | null;
-  inherited_context?: Record<string, unknown> | null;
-  position: { x: number; y: number };
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: User;
 }
 
-export interface BranchImportResponse {
-  nodes: BranchShareNodePayload[];
-  edges: Array<{ id: string; source: string; target: string; type: string }>;
-  messages: Record<
-    string,
-    Array<{
-      message_id: string;
-      role: Message['role'];
-      content: string;
-      timestamp: string;
-      metadata?: Record<string, unknown>;
-    }>
-  >;
-  meta?: { project_id?: string; project_name?: string; root_node_id?: string };
-}
-
-export const userApi = {
-  register: async (username: string, email: string): Promise<UserProfile> => {
-    const response = await api.post<UserProfile>('/user/register', { username, email });
+export const authApi = {
+  login: async (email: string, password: string): Promise<any> => {
+    const response = await api.post('/auth/login', { email, password });
+    if (response.data.access_token) {
+      localStorage.setItem(AUTH_TOKEN_KEY, response.data.access_token);
+    }
     return response.data;
   },
 
-  getProfile: async (): Promise<UserProfile> => {
-    const response = await api.get<UserProfile>('/user/profile');
+  register: async (email: string, password: string): Promise<{ message: string; user_id: string }> => {
+    const response = await api.post('/auth/register', { email, password });
     return response.data;
   },
 
-  updateProfile: async (data: { username?: string; email?: string }): Promise<UserProfile> => {
-    const response = await api.put<UserProfile>('/user/profile/update', data);
+  getMe: async (): Promise<User> => {
+    const response = await api.get<User>('/auth/me');
     return response.data;
   },
+
+  logout: () => {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+  },
+
+  setup2FA: async (): Promise<{ secret: string; uri: string }> => {
+    const response = await api.post('/auth/2fa/setup');
+    return response.data;
+  },
+
+  enable2FA: async (code: string): Promise<{ message: string }> => {
+    const response = await api.post('/auth/2fa/enable', { code });
+    return response.data;
+  },
+
+  verify2FA: async (code: string, tempToken: string): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/2fa/verify', { code, temp_token: tempToken });
+    if (response.data.access_token) {
+      localStorage.setItem(AUTH_TOKEN_KEY, response.data.access_token);
+    }
+    return response.data;
+  },
+
+  disable2FA: async (): Promise<{ message: string }> => {
+    const response = await api.post('/auth/2fa/disable');
+    return response.data;
+  },
+
+  // Passkeys
+  generatePasskeyRegistration: async (): Promise<any> => {
+    const response = await api.get('/auth/passkeys/register/generate');
+    return response.data;
+  },
+  
+  verifyPasskeyRegistration: async (credential: any): Promise<any> => {
+    const response = await api.post('/auth/passkeys/register/verify', credential);
+    return response.data;
+  },
+  
+  getPasskeyCredentials: async (): Promise<any[]> => {
+    const response = await api.get('/auth/passkeys/credentials');
+    return response.data;
+  },
+  
+  deletePasskeyCredential: async (id: string): Promise<any> => {
+    const response = await api.delete(`/auth/passkeys/credentials/${id}`);
+    return response.data;
+  },
+
+  generatePasskeyAuthentication: async (email: string): Promise<any> => {
+    const response = await api.post('/auth/passkeys/authenticate/generate', { email });
+    return response.data;
+  },
+
+  verifyPasskeyAuthentication: async (email: string, credential: any): Promise<any> => {
+    const response = await api.post('/auth/passkeys/authenticate/verify', { email, credential });
+    if (response.data.token) {
+      localStorage.setItem(AUTH_TOKEN_KEY, response.data.token);
+    }
+    return response.data;
+  },
+
+  deleteAccount: async (): Promise<void> => {
+    await api.delete('/auth/me');
+  }
 };
 
 export const canvasApi = {
@@ -392,8 +466,8 @@ export const canvasApi = {
     return response.data;
   },
 
-  importBranch: async (shareId: string): Promise<BranchImportResponse> => {
-    const response = await api.get<BranchImportResponse>(`/canvas/import-branch/${shareId}`);
+  importBranch: async (shareId: string): Promise<any> => {
+    const response = await api.get(`/canvas/import-branch/${shareId}`);
     return response.data;
   },
 };

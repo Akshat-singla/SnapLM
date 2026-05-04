@@ -22,7 +22,7 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
   const archiveNodeBranch = useStore(state => state.archiveNodeBranch);
   const restoreNodeBranch = useStore(state => state.restoreNodeBranch);
   const deleteNodeBranch = useStore(state => state.deleteNodeBranch);
-  //const [_isDeleting, setIsDeleting] = useState(false);
+  const agenticProposeBranches = useStore(state => state.agenticProposeBranches);
 
   const isHighlighted = highlightedPath.includes(id);
   const isDimmed = selectedNodeId && !isHighlighted;
@@ -35,6 +35,11 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
   const handleBranch = (e: React.MouseEvent) => {
     e.stopPropagation();
     setCreatingBranchNodeId(id);
+  };
+
+  const handleAISuggest = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    agenticProposeBranches(id);
   };
 
   const handleMerge = (e: React.MouseEvent) => {
@@ -63,10 +68,10 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
     } catch (error) {
       console.error('Failed to delete node:', error);
       addToast({ type: 'error', message: 'Failed to delete node' });
-    } 
+    }
   };
 
-    const handleArchiveBranch = async (e: React.MouseEvent) => {
+  const handleArchiveBranch = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       setSelectedNode(id);
@@ -110,7 +115,7 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
       )}
 
       {/* Non-root action: archive */}
-      {!isRoot && !data.isReadOnly && (data.status as string) !== 'archived' &&(
+      {!isRoot && !data.isReadOnly && (data.status as string) !== 'archived' && (
         <button
           onClick={handleArchiveBranch}
           className="absolute right-2 top-2 rounded-md p-1 text-slate-400 hover:text-white hover:bg-surface-border transition-colors z-10"
@@ -121,7 +126,7 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
       )}
 
       {/* Non-root action: restore archived */}
-      {!isRoot && !data.isReadOnly && (data.status as string) === 'archived' &&(
+      {!isRoot && !data.isReadOnly && (data.status as string) === 'archived' && (
         <button
           onClick={handleRestoreBranch}
           className="absolute right-2 top-2 rounded-md p-1 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors z-10"
@@ -139,7 +144,7 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
         <div
           className="h-32 bg-cover bg-center relative"
           style={{
-            backgroundImage: 'linear-gradient(180deg, rgba(19, 91, 236, 0.3) 0%, rgba(17, 19, 24, 0.9) 50%, #111318 100%), radial-gradient(circle at 30% 20%, rgba(19, 91, 236, 0.4) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(76, 201, 240, 0.2) 0%, transparent 40%)'
+            backgroundImage: 'linear-gradient(180deg, rgba(19, 91, 236, 0.3) 0%, rgba(17, 19, 24, 0.9) 50%, var(--color-bg-dark) 100%), radial-gradient(circle at 30% 20%, rgba(19, 91, 236, 0.4) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(76, 201, 240, 0.2) 0%, transparent 40%)'
           }}
         >
           <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1 text-[10px] text-white font-mono border border-white/10">ROOT</div>
@@ -149,7 +154,7 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
         <div className="flex items-center justify-between p-4 pb-2">
           <div className={clsx(
             "text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1",
-            isActive ? "bg-primary/20 text-primary" : "bg-slate-700 text-slate-400"
+            isActive ? "bg-primary/20 text-primary" : "bg-surface-muted text-slate-400"
           )}>
             {isFrozen && <Lock size={10} />}
             {data.status}
@@ -162,11 +167,11 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
         <h3 className={clsx("text-2xl font-bold text-white mb-1 transition-colors", !isRoot && "text-lg leading-tight")}>
           {data.title}
         </h3>
-        //description
+        {/* description */}
         <p className="text-slate-400 text-sm mb-4 line-clamp-2">
           {data.inheritedContext || "No context summary available."}
         </p>
-//Insights
+        {/* Insights */}
         {isActive && !isRoot && (
           <div className="bg-primary/10 rounded p-2 border border-primary/20 mb-3">
             <div className="flex gap-2 items-center text-xs text-primary mb-1">
@@ -180,7 +185,7 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
         {isRoot && (
           <div className="flex items-center justify-between">
             <div className="flex -space-x-2">
-              <div className="w-6 h-6 rounded-full bg-slate-700 border border-background-dark flex items-center justify-center text-xs text-white">
+              <div className="w-6 h-6 rounded-full bg-surface-muted border border-background-dark flex items-center justify-center text-xs text-white">
                 A
               </div>
               <div className="w-6 h-6 rounded-full bg-primary border border-background-dark flex items-center justify-center text-xs text-white">
@@ -189,7 +194,7 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
             </div>
             <div className="flex items-center gap-2">
               {data.isReadOnly && (
-                <span className="text-[10px] text-slate-400 bg-slate-700/50 px-2 py-0.5 rounded">Read-only</span>
+                <span className="text-[10px] text-slate-400 bg-surface-muted/50 px-2 py-0.5 rounded">Read-only</span>
               )}
               <button
                 type="button"
@@ -201,11 +206,15 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
             </div>
           </div>
         )}
-        {isActive && (
-          <div className="flex gap-2 mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Action Buttons */}
+        {(isActive || isFrozen) && (
+          <div className={clsx(
+            "flex gap-2 mt-4 transition-all duration-300",
+            (selected || isDimmed === false) ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          )}>
             <button
               type="button"
-              className="flex-1 bg-primary hover:bg-blue-600 text-white text-xs font-bold py-1.5 rounded transition-colors"
+              className="flex-1 bg-primary hover:bg-primary-hover text-white text-[10px] font-bold py-1.5 rounded transition-colors"
               onClick={handleExpand}
             >
               Expand
@@ -214,26 +223,38 @@ const CustomNode = ({ id, data, selected }: NodeProps<NodeData> & { id: string }
               <>
                 <button
                   type="button"
-                  className="flex-1 bg-surface-border hover:bg-gray-700 text-white text-xs font-bold py-1.5 rounded transition-colors"
+                  className="flex-1 bg-surface-border hover:bg-surface-hover text-white text-[10px] font-bold py-1.5 rounded transition-colors"
                   onClick={handleBranch}
                 >
                   Branch
                 </button>
-                <button
-                  type="button"
-                  className="flex-1 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 text-xs font-bold py-1.5 rounded transition-colors"
-                  onClick={handleMerge}
-                >
-                  Merge
-                </button>
-                {!isRoot && (
+                {isActive && (
                   <button
                     type="button"
-                    className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-bold py-1.5 rounded transition-colors"
-                    onClick={handleDelete}
+                    className="flex-1 bg-violet-500/10 hover:bg-violet-500/20 text-violet-300 border border-violet-500/20 text-[10px] font-bold py-1.5 rounded transition-colors flex items-center justify-center gap-1"
+                    onClick={handleAISuggest}
+                    title="Let AI suggest branches"
                   >
-                    Delete
+                    <Sparkles size={10} /> AI
                   </button>
+                )}
+                {isActive && (
+                  <>
+                    <button
+                      type="button"
+                      className="flex-1 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 text-[10px] font-bold py-1.5 rounded transition-colors"
+                      onClick={handleMerge}
+                    >
+                      Merge
+                    </button>
+                    <button
+                      type="button"
+                      className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-[10px] font-bold py-1.5 rounded transition-colors"
+                      onClick={handleDelete}
+                    >
+                      Delete
+                    </button>
+                  </>
                 )}
               </>
             )}

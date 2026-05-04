@@ -39,7 +39,7 @@ const ContextEdge = ({
         markerEnd={markerEnd}
         style={{
           ...style,
-          stroke: isHighlighted ? '#135bec' : (isDimmed ? '#334155' : '#475569'),
+          stroke: isHighlighted ? 'var(--color-primary)' : (isDimmed ? 'var(--color-edge-dimmed)' : 'var(--color-edge-default)'),
           strokeWidth: isHighlighted ? 3 : 1.5,
           opacity: isDimmed ? 0.3 : 1,
           transition: 'all 0.3s ease',

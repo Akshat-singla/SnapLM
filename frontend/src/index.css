@@ -7,15 +7,69 @@
 
 @layer base {
   :root {
-    --active: #0ea5e9;
-    --frozen: #8b5cf6;
-    --deleted: #ef4444;
-    --ai: #10b981;
-    --user: #f59e0b;
+    /* ─── Brand / Primary ──────────────────────── */
+    --color-primary: #135bec;
+    --color-primary-rgb: 19, 91, 236;
+    --color-primary-hover: #2563eb;
+    --color-notification: rgb(231, 153, 7);
+    /* ─── Backgrounds ──────────────────────────── */
+    --color-bg-light: #f6f6f8;
+    --color-bg-dark: #111318;
+    --color-bg-dark-rgb: 17, 19, 24;
 
+    /* ─── Surfaces ─────────────────────────────── */
+    --color-surface-dark: #1a1d26;
+    --color-surface-dark-rgb: 26, 29, 38;
+    --color-surface-border: #282e39;
+    --color-surface-elevated: #1c222e;
+    --color-surface-elevated-rgb: 28, 34, 46;
+    --color-surface-focus: #1f242e;
+    --color-surface-hover: #374151;
+    --color-surface-muted: #334155;
+
+    /* ─── Panels (chat, modals) ────────────────── */
+    --color-panel-dark: #151a23;
+    --color-panel-header: #1a202a;
+
+    /* ─── Text ─────────────────────────────────── */
+    --color-text-heading: #1c1917;
+    --color-text-secondary: #e0e2e7;
+    --color-text-muted: #9da6b9;
+    --color-text-muted-light: #5b6579;
+
+    /* ─── Scrollbar ────────────────────────────── */
+    --color-scrollbar-thumb: #282e39;
+    --color-scrollbar-hover: #3c4453;
+
+    /* ─── Edge / Graph ─────────────────────────── */
+    --color-edge-default: #475569;
+    --color-edge-dimmed: #334155;
+
+    /* ─── Node Status ──────────────────────────── */
+    --color-node-active: #0ea5e9;
+    --color-node-active-rgb: 14, 165, 233;
+    --color-node-frozen: #8b5cf6;
+    --color-node-frozen-rgb: 139, 92, 246;
+    --color-node-deleted: #ef4444;
+    --color-node-deleted-rgb: 239, 68, 68;
+    --color-node-ai: #10b981;
+    --color-node-ai-rgb: 16, 185, 129;
+    --color-node-user: #f59e0b;
+    --color-node-user-rgb: 245, 158, 11;
+
+    /* ─── Canvas variables (light mode) ────────── */
     --bg-canvas: #fafaf9;
     --bg-node: #f5f5f4;
     --text-primary: #1c1917;
+
+    /* ─── Semantic feedback ─────────────────────── */
+    --color-toast-success: #16a34a;
+    --color-toast-error: #dc2626;
+    --color-toast-info: #334155;
+
+    /* ─── Merge accent ─────────────────────────── */
+    --color-merge-accent: #9333ea;
+    --color-merge-accent-hover: #7e22ce;
   }
 
   .dark {
@@ -24,8 +78,12 @@
     --text-primary: #ffffff;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
-    @apply font-body bg-background-light dark:bg-background-dark text-slate-900 dark:text-white overflow-hidden;
+    @apply font-body bg-background-light dark:bg-background-dark text-slate-900 dark:text-white;
   }
 }
 
@@ -49,12 +107,12 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #282e39;
+    background: var(--color-scrollbar-thumb);
     border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #3c4453;
+    background: var(--color-scrollbar-hover);
   }
 
   .blur-backdrop {
@@ -63,7 +121,7 @@
   }
 
   .neon-glow {
-    filter: drop-shadow(0 0 5px #135bec) drop-shadow(0 0 10px #135bec);
+    filter: drop-shadow(0 0 5px var(--color-primary)) drop-shadow(0 0 10px var(--color-primary));
   }
 
   .glass-panel {

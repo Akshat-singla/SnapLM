@@ -1,84 +1,181 @@
 import { useState } from 'react';
-import { Settings, Bell, UserCircle, Share2, GitBranch } from 'lucide-react';
+import { Menu, MenuItem, Divider } from '@mui/material';
+import { Settings, Bell, UserCircle, Share2, GitBranch, GanttChart } from 'lucide-react';
+import { motion } from 'framer-motion';
 import ProjectSelector from './ProjectSelector';
 import ShareBranchModal from '../modals/ShareBranchModal';
 import useStore from '../../store';
+import { useLocation, useNavigate } from 'react-router-dom';
 
-type ToolbarProps = {
-  appPath: string;
-  onNavigate: (path: string) => void;
-};
+import { AppBar, Toolbar as MuiToolbar, Box, Button, IconButton, Typography, Badge, Chip } from '@mui/material';
 
-const Toolbar = ({ appPath, onNavigate }: ToolbarProps) => {
+const Toolbar = () => {
   const { createShareLink, currentProjectId, isReadOnly, selectedNodeId } = useStore();
   const [shareBranchOpen, setShareBranchOpen] = useState(false);
-  const isBranchView = appPath.startsWith('/branch/');
+  const [notificationAnchor, setNotificationAnchor] = useState<null | HTMLElement>(null);
+
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  const isBranchView = location.pathname.startsWith('/app/branch/') || location.pathname.startsWith('/branch/');
+  const isSharedView = location.pathname.startsWith('/app/shared/') || location.pathname.startsWith('/shared/');
+  const isProjectView = location.pathname === '/app' || isBranchView || isSharedView;
 
   return (
     <>
-      <header className="z-50 flex items-center justify-between border-b border-surface-border bg-background-dark/90 backdrop-blur-md px-6 py-3 h-16 shrink-0">
-      <div className="flex items-center gap-6 text-white">
-        <div className="flex items-center gap-4">
-          <div className="size-8 text-primary flex items-center justify-center">
-            {/* Logo Placeholder */}
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          </div>
-          <h2 className="text-white text-xl font-bold leading-tight tracking-tight">SnapLM</h2>
+      <Box 
+        component="header"
+        className="flex items-center justify-between w-full h-16 shrink-0 px-4 sm:px-6 z-50 backdrop-blur-md border-b"
+        sx={{ 
+          background: 'rgba(var(--color-bg-dark-rgb), 0.8)', 
+          borderColor: 'rgba(255, 255, 255, 0.1)'
+        }}
+      >
+        <div className="flex items-center gap-6">
+          <motion.div
+            whileHover="hover"
+            className="flex items-center gap-2 cursor-pointer group"
+            onClick={() => navigate('/')}
+          >
+            <motion.div
+                variants={{
+                    hover: { scale: 1.1, rotate: 5 }
+                }}
+                className="bg-primary/10 p-2 rounded-lg"
+            >
+                <GanttChart className="text-primary" size={22} />
+            </motion.div>
+            <span className="font-display text-xl font-bold tracking-tight text-white">
+                SnapLM
+            </span>
+          </motion.div>
+
+          {isProjectView && <ProjectSelector />}
+
+          {isReadOnly && (
+            <Chip 
+              label={isBranchView ? 'Viewing shared branch (read-only)' : 'Viewing shared workspace (read-only)'} 
+              size="small"
+              sx={{ 
+                bgcolor: 'rgba(var(--color-node-user-rgb), 0.1)', 
+                color: 'var(--color-node-user)', 
+                border: '1px solid rgba(var(--color-node-user-rgb), 0.2)',
+                fontWeight: 500
+              }} 
+            />
+          )}
         </div>
 
-        {/* Project Selector */}
-        <ProjectSelector />
+        <div className="flex items-center gap-3">
+          {isProjectView && currentProjectId && !isReadOnly && (
+            <>
+              <Button 
+                variant="contained" 
+                startIcon={<Share2 size={18} />}
+                onClick={() => createShareLink()}
+                sx={{ 
+                  bgcolor: 'var(--color-primary)', 
+                  '&:hover': { bgcolor: 'var(--color-primary-hover)' }, 
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  boxShadow: '0 4px 14px 0 rgba(var(--color-primary-rgb), 0.39)'
+                }}
+              >
+                Share Brain
+              </Button>
+              <Button 
+                variant="outlined" 
+                startIcon={<GitBranch size={18} />}
+                onClick={() => setShareBranchOpen(true)}
+                disabled={!selectedNodeId}
+                title={!selectedNodeId ? 'Select a node on the canvas' : 'Share this branch from the selected node'}
+                sx={{ 
+                  borderColor: 'rgba(255,255,255,0.2)', 
+                  color: 'white',
+                  '&:hover': { borderColor: 'rgba(255,255,255,0.3)', bgcolor: 'rgba(255,255,255,0.05)' },
+                  '&.Mui-disabled': { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.3)' },
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  borderRadius: 2
+                }}
+              >
+                Share Branch
+              </Button>
+            </>
+          )}
 
-        {isReadOnly && (
-          <span className="text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-full">
-            {isBranchView ? 'Viewing shared branch (read-only)' : 'Viewing shared workspace (read-only)'}
-          </span>
-        )}
-      </div>
+          <Button 
+            variant="text"
+            startIcon={<UserCircle size={18} />}
+            onClick={() => navigate('/app/profile')}
+            sx={{ 
+              color: 'white', 
+              textTransform: 'none', 
+              fontWeight: 600,
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' },
+              borderRadius: 2,
+              ml: 1
+            }}
+          >
+            Profile
+          </Button>
 
-      <div className="flex gap-3">
-        {!isReadOnly && (
-          <button
-            onClick={() => createShareLink()}
-            disabled={!currentProjectId}
-            className="flex items-center gap-2 cursor-pointer overflow-hidden rounded-lg h-9 px-4 bg-primary hover:bg-blue-600 transition-colors text-white text-sm font-bold leading-normal tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
+          <IconButton
+            onClick={() => navigate('/app/settings')}
+            className="group hover:bg-white/5 transition-colors" sx={{ color: 'rgba(255,255,255,0.7)', borderRadius: 2 }}>
+            <Settings size={20} className="group-hover:text-white transition-colors" />
+          </IconButton>
+
+          <IconButton onClick={(e) => setNotificationAnchor(e.currentTarget)} className="group hover:bg-white/5 transition-colors" sx={{ color: 'rgba(255,255,255,0.7)', borderRadius: 2 }}>
+            <Badge color="error" variant="dot" sx={{ '& .MuiBadge-badge': { top: 3, right: 3 } }}>
+              <Bell size={20} className="group-hover:text-white transition-colors" />
+            </Badge>
+          </IconButton>
+
+          <Menu
+            anchorEl={notificationAnchor}
+            open={Boolean(notificationAnchor)}
+            onClose={() => setNotificationAnchor(null)}
+            PaperProps={{
+              sx: {
+                bgcolor: 'var(--color-surface-dark)',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.1)',
+                backdropFilter: 'blur(10px)',
+                minWidth: 280,
+                mt: 1.5,
+                '& .MuiMenuItem-root': {
+                    fontSize: '0.875rem',
+                    py: 1.5,
+                    '&:hover': {
+                        bgcolor: 'rgba(255,255,255,0.05)'
+                    }
+                }
+              }
+            }}
+            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
           >
-            <Share2 size={18} />
-            <span className="truncate">Share Brain</span>
-          </button>
-        )}
-        {!isReadOnly && (
-          <button
-            type="button"
-            onClick={() => setShareBranchOpen(true)}
-            disabled={!currentProjectId || !selectedNodeId}
-            title={!selectedNodeId ? 'Select a node on the canvas' : 'Share this branch from the selected node'}
-            className="flex items-center gap-2 cursor-pointer overflow-hidden rounded-lg h-9 px-4 bg-surface-border hover:bg-gray-700 transition-colors text-white text-sm font-bold leading-normal tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <GitBranch size={18} />
-            <span className="truncate">Share Branch</span>
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => onNavigate('/profile')}
-          className="flex items-center gap-2 cursor-pointer overflow-hidden rounded-lg h-9 px-4 bg-surface-border hover:bg-gray-700 transition-colors text-white text-sm font-bold leading-normal tracking-wide"
-        >
-          <UserCircle size={18} />
-          <span className="truncate">Profile</span>
-        </button>
-<button className="flex size-9 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-surface-border hover:bg-gray-700 transition-colors text-white">
-          <Settings size={20} />
-        </button>
-        <button className="flex size-9 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-surface-border hover:bg-gray-700 transition-colors text-white relative">
-          <Bell size={20} />
-          <span className="absolute top-2 right-2 size-2 bg-red-500 rounded-full border border-[#111318]"></span>
-        </button>
-      </div>
-      </header>
+            <div className="px-4 py-3 font-bold border-b border-white/10 mb-1 text-sm uppercase tracking-wider text-slate-400">
+                Notifications
+            </div>
+            <MenuItem onClick={() => setNotificationAnchor(null)}>
+                Your model finished training
+            </MenuItem>
+            <MenuItem onClick={() => setNotificationAnchor(null)}>
+                John shared a branch
+            </MenuItem>
+            <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', my: 1 }} />
+            <MenuItem 
+                onClick={() => setNotificationAnchor(null)} 
+                sx={{ color: 'var(--color-primary)', fontWeight: 'bold' }}
+            >
+                View all notifications
+            </MenuItem>
+          </Menu>
+        </div>
+      </Box>
       <ShareBranchModal open={shareBranchOpen} onClose={() => setShareBranchOpen(false)} />
     </>
   );

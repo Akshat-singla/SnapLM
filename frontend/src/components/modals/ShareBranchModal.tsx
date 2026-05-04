@@ -27,7 +27,7 @@ const ShareBranchModal = ({ open, onClose }: ShareBranchModalProps) => {
         root_node_id: selectedNodeId,
         shared_with_user: sharedWith.trim(),
       });
-      const link = `${window.location.origin}/branch/${res.share_id}`;
+      const link = `${window.location.origin}/app/branch/${res.share_id}`;
       setLastLink(link);
       try {
         await navigator.clipboard.writeText(link);
@@ -96,7 +96,7 @@ const ShareBranchModal = ({ open, onClose }: ShareBranchModalProps) => {
             <button
               type="submit"
               disabled={submitting || !sharedWith.trim() || !selectedNodeId || !currentProjectId}
-              className="rounded-lg bg-primary hover:bg-blue-600 px-4 py-2 text-sm font-semibold disabled:opacity-50"
+              className="rounded-lg bg-primary hover:bg-primary-hover px-4 py-2 text-sm font-semibold disabled:opacity-50"
             >
               {submitting ? 'Sharing…' : 'Create share link'}
             </button>

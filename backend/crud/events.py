@@ -15,6 +15,4 @@ async def insert_event(
         node_id=node_id, event_type=event_type, payload=payload, user_id=user_id
     )
     session.add(event)
-    await session.commit()
-    await session.refresh(event)
     return event
